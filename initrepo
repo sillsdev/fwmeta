@@ -17,22 +17,30 @@ useremail=$(git config --get user.email)
 mergetool=$(git config --get merge.tool)
 mergetool=${mergetool:-p4merge}
 
+savevalues=false
+
 # Query user for variables
-if [ -z $gerritusername ]; then
-	gerritusername=${gerritusername:-$username}
-	gerritusername=$(readdefault "Gerrit username" ${gerritusername:-$(whoami)})
-	# Store gerrit username for later use
-	git config --global fwinit.gerrituser $gerritusername
-fi
 if [ -z $username ]; then
-	username=$(readdefault "Username" ${username:-$(whoami)})
-	git config --global user.name $username
+	username=$(readdefault "Full name" ${username:-$(whoami)})
+	savevalues=true
 fi
 if [ -z $useremail ]; then
 	tmpemail="${username// /_}@sil.org"
 	useremail=${useremail:-$tmpemail}
 	useremail=$(readdefault "Email" $useremail)
+	savevalues=true
+fi
+if [ -z $gerritusername ]; then
+	gerritusername=${gerritusername:-$username}
+	gerritusername=$(readdefault "Gerrit username" ${gerritusername:-$(whoami)})
+	savevalues=true
+fi
+
+if $savevalues; then
+	# Store variables for later use
+	git config --global user.name $username
 	git config --global user.email $useremail
+	git config --global fwinit.gerrituser $gerritusername
 fi
 
 if [ -d .git ]; then
