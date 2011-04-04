@@ -123,7 +123,7 @@ mv .git/config2 .git/config
 
 git config guitool.Feature/Start.cmd 'git flow feature start $ARGS'
 git config guitool.Feature/Start.argprompt yes
-git config guitool.Feature/Review.cmd 'git push review HEAD:refs/for/develop'
+git config guitool.Feature/Review.cmd 'git push review HEAD:refs/for/develop/$CUR_BRANCH'
 git config guitool.Feature/Finish.cmd 'git flow feature finish ${CUR_BRANCH#*/} && git push review HEAD:refs/heads/develop'
 
 git config guitool.Release/Start.cmd 'git flow release start $ARGS'
@@ -133,7 +133,7 @@ git config guitool.Release/Finish.cmd 'git flow release finish ${CUR_BRANCH#*/} 
 
 git config guitool.Hotfix/Start.cmd 'git flow hotfix start $ARGS'
 git config guitool.Hotfix/Start.argprompt yes
-git config guitool.Hotfix/Review.cmd 'git push review HEAD:refs/for/master'
+git config guitool.Hotfix/Review.cmd 'git push review HEAD:refs/for/master/$CUR_BRANCH'
 git config guitool.Hotfix/Finish.cmd 'git flow hotfix finish ${CUR_BRANCH#*/} && git push review --all && git push review --tags'
 
 git config guitool.Support/Start.cmd 'git flow support start $ARGS'
