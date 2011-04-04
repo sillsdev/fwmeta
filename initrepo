@@ -1,0 +1,132 @@
+#!/bin/bash
+
+function readdefault {
+	# parameters:
+	# $1: prompt
+	# $2: default value
+	read -p "$1 ($2): " tmp
+	echo ${tmp:-$2}
+}
+
+# Sanity checks
+[ -z $(which git-flow) ] && echo "Can't find git-flow. Please install." && exit 1
+
+gerritusername=$(git config --get fwinit.gerrituser)
+mergetool=$(git config --get merge.tool)
+mergetool=${mergetool:-p4merge}
+
+# Query user for variables
+if [ -z $gerritusername ]; then
+	gerritusername=${gerritusername:-$username}
+	gerritusername=$(readdefault "Gerrit username" ${gerritusername:-$(whoami)})
+fi
+
+# Store gerrit username for later use
+git config --global fwinit.gerrituser $gerritusername
+
+if [ -d .git ]; then
+	firsttime=false
+	gerritproject=$(basename $(pwd)).git
+else
+	firsttime=true
+	origin=$(readdefault "Git project to clone" "git://github.com/ermshiperete/testproject.git")
+	project=$(basename $origin .git)
+	target=$(readdefault "Target directory" "$(pwd)/$project")
+	parentdir=$(dirname $target)
+	gerritproject=${project}.git
+	mergetool=$(readdefault "Merge tool [p4merge, kdiff3]" "$mergetool")
+
+	# Clone project
+	echo "Cloning project $(basename $target):"
+	cd $parentdir
+	git clone $origin $target
+	cd $target
+fi
+
+# create local branches
+echo "Creating local branches:"
+for remote in $(git branch -r | grep -v master); do
+	if ! $(git branch | grep -q ${remote#origin/}); then
+		git branch ${remote#origin/} "remotes/$remote"
+	fi
+done
+
+if $firsttime; then
+	git checkout develop
+fi
+
+# setup
+if ! $(git config --get remote.review.url > /dev/null); then
+	echo "Updating configuration:"
+	git remote add review "ssh://${gerritusername}@hydra.wycliffe.ca:29418/$gerritproject"
+	git config remote.review.push "refs/heads/*:refs/for/*"
+fi
+
+# install hook
+if [ ! -f .git/hooks/commit-msg ]; then
+	echo "Getting commit hook:"
+	scp -P 29418 ${gerritusername}@hydra.wycliffe.ca:hooks/commit-msg .git/hooks
+fi
+
+# Initialize git flow
+if ! $(git config --get gitflow.branch.master > /dev/null); then
+	git flow init > /dev/null << END
+
+
+
+
+
+
+END
+fi
+
+# adding some alias
+echo "Adding alias:"
+if $firsttime; then
+	if [ "$(uname)" == "Linux" ]; then
+		git config core.editor gedit
+		git config gui.editor gedit
+	else
+		git config core.editor $(dirname $0)/winedit.sh
+	fi
+	git config merge.tool "$mergetool"
+	git config diff.guitool "$mergetool"
+fi
+git config alias.featfin '!sh -c "git pull --rebase review develop && git flow feature finish \$1 && git push review HEAD:refs/heads/develop" -'
+git config alias.review '!sh -c "branch=\$(git symbolic-ref -q HEAD || git name-rev --name-only HEAD 2>/dev/null) && branch=\${branch#refs/heads/} && git push review HEAD:refs/for/\$1/\$branch" -'
+git config alias.release '!sh -c "git pull --rebase review develop && git pull --rebase review master && git flow release finish \$1 && git pull review develop && git push review --all && git push review --tags :refs/heads/release/\$1" -'
+git config alias.hotfin '!sh -c "git pull --rebase review develop && git pull --rebase review master && git flow hotfix finish \$1 && git push review --all && git push review --tags" -'
+sedReplace="$(dirname $0)/supfin.sh"
+sedReplace=${sedReplace//\//\\\/} # replace all / with \/
+git config alias.supfin '! sh -c "SEDREPLACE \$1" -'
+sed "s/SEDREPLACE/$sedReplace/g" .git/config 2>&1 > .git/config2
+mv .git/config2 .git/config
+
+git config guitool.Feature/Start.cmd 'git flow feature start $ARGS'
+git config guitool.Feature/Start.argprompt yes
+git config guitool.Feature/Review.cmd 'git push review HEAD:refs/for/develop'
+git config guitool.Feature/Finish.cmd 'git flow feature finish ${CUR_BRANCH#*/} && git push review HEAD:refs/heads/develop'
+
+git config guitool.Release/Start.cmd 'git flow release start $ARGS'
+git config guitool.Release/Start.argprompt yes
+git config guitool.Release/Review.cmd 'git push review HEAD:refs/for/$CUR_BRANCH'
+git config guitool.Release/Finish.cmd 'git flow release finish ${CUR_BRANCH#*/} && git pull review develop && git push review --all && git push review --tags :refs/heads/$CUR_BRANCH'
+
+git config guitool.Hotfix/Start.cmd 'git flow hotfix start $ARGS'
+git config guitool.Hotfix/Start.argprompt yes
+git config guitool.Hotfix/Review.cmd 'git push review HEAD:refs/for/master'
+git config guitool.Hotfix/Finish.cmd 'git flow hotfix finish ${CUR_BRANCH#*/} && git push review --all && git push review --tags'
+
+git config guitool.Support/Start.cmd 'git flow support start $ARGS'
+git config guitool.Support/Start.argprompt yes
+git config guitool.Support/Review.cmd 'git push review HEAD:refs/for/$CUR_BRANCH'
+git config guitool.Support/Finish.cmd 'git pull review $CUR_BRANCH && git tag -a $ARGS && git checkout develop && git pull review develop && git merge -m "Merge branch $CUR_BRANCH into develop" --no-ff $CUR_BRANCH && git push review --all && git push review --tags'
+git config guitool.Support/Finish.argprompt yes
+
+git config "guitool.Bypass Code Review.cmd" 'git push review $CUR_BRANCH'
+git config "guitool.Interactive Rebase.cmd" 'git rebase -i $REVISION'
+git config "guitool.Interactive Rebase.revprompt" yes
+git config "guitool.Visual Diff.cmd" 'git difftool -y $FILENAME'
+git config "guitool.Visual Diff.needsfile" yes
+git config "guitool.Visual Diff.noconsole" yes
+
