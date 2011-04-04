@@ -12,6 +12,8 @@ function readdefault {
 [ -z $(which git-flow) ] && echo "Can't find git-flow. Please install." && exit 1
 
 gerritusername=$(git config --get fwinit.gerrituser)
+username=$(git config --get user.name)
+useremail=$(git config --get user.email)
 mergetool=$(git config --get merge.tool)
 mergetool=${mergetool:-p4merge}
 
@@ -19,10 +21,18 @@ mergetool=${mergetool:-p4merge}
 if [ -z $gerritusername ]; then
 	gerritusername=${gerritusername:-$username}
 	gerritusername=$(readdefault "Gerrit username" ${gerritusername:-$(whoami)})
+	# Store gerrit username for later use
+	git config --global fwinit.gerrituser $gerritusername
 fi
-
-# Store gerrit username for later use
-git config --global fwinit.gerrituser $gerritusername
+if [ -z $username ]; then
+	username=$(readdefault "Username" ${username:-$(whoami)})
+	git config --global user.name $username
+fi
+if [ -z $useremail ]; then
+	useremail=${useremail:-${username// /_}}
+	useremail=$(readdefault "Email" $useremail)
+	git config --global user.email $useremail
+fi
 
 if [ -d .git ]; then
 	firsttime=false
