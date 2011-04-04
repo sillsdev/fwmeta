@@ -29,7 +29,8 @@ if [ -z $username ]; then
 	git config --global user.name $username
 fi
 if [ -z $useremail ]; then
-	useremail=${useremail:-${username// /_}}
+	tmpemail="${username// /_}@sil.org"
+	useremail=${useremail:-$tmpemail}
 	useremail=$(readdefault "Email" $useremail)
 	git config --global user.email $useremail
 fi
