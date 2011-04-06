@@ -60,6 +60,7 @@ else
 	cd $parentdir
 	git clone $origin $target
 	cd $target
+	git remote set-url --push origin "ssh://${gerritusername}@hydra.wycliffe.ca:29418/$gerritproject"
 fi
 
 # create local branches
@@ -124,24 +125,28 @@ git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push r
 
 git config guitool.Feature/Start.cmd 'git flow feature start $ARGS'
 git config guitool.Feature/Start.argprompt "Feature name (JIRA number)"
-git config "guitool.Feature/Submit for Review.cmd" 'git push review HEAD:refs/for/develop/$CUR_BRANCH'
+git config "guitool.Feature/Submit for Code Review.cmd" 'git push review HEAD:refs/for/develop/$CUR_BRANCH'
 git config guitool.Feature/Finish.cmd 'git featfin ${CUR_BRANCH#*/}'
+git config guitool.Feature/Publish.cmd 'git flow feature publish ${CUR_BRANCH#*/}'
+git config guitool.Feature/Track.cmd 'git flow feature track $ARGS'
+git config guitool.Feature/Track.argprompt "Name of the feature"
 
 git config guitool.Release/Start.cmd 'git flow release start $ARGS'
 git config guitool.Release/Start.argprompt "Name of the release"
-git config "guitool.Release/Submit for Review.cmd" 'git push review HEAD:refs/for/$CUR_BRANCH'
+git config "guitool.Release/Submit for Code Review.cmd" 'git push review HEAD:refs/for/$CUR_BRANCH'
 git config guitool.Release/Finish.cmd 'git release ${CUR_BRANCH#*/}'
+git config guitool.Release/Publish.cmd 'git flow release publish ${CUR_BRANCH#*/}'
 git config guitool.Release/Track.cmd 'git flow release track $ARGS'
 git config guitool.Release/Track.argprompt "Name of the release"
 
 git config guitool.Hotfix/Start.cmd 'git flow hotfix start $ARGS'
 git config guitool.Hotfix/Start.argprompt "Name of the fixed version"
-git config "guitool.Hotfix/Submit for Review.cmd" 'git push review HEAD:refs/for/master/$CUR_BRANCH'
+git config "guitool.Hotfix/Submit for Code Review.cmd" 'git push review HEAD:refs/for/master/$CUR_BRANCH'
 git config guitool.Hotfix/Finish.cmd 'git hotfin ${CUR_BRANCH#*/}'
 
 git config guitool.Support/Start.cmd 'git flow support start $ARGS'
 git config guitool.Support/Start.argprompt "Name of the support branch and tag it is based on (e.g. '1.0 1.0')"
-git config "guitool.Support/Submit for Review.cmd" 'git push review HEAD:refs/for/$CUR_BRANCH'
+git config "guitool.Support/Submit for Code Review.cmd" 'git push review HEAD:refs/for/$CUR_BRANCH'
 git config guitool.Support/Finish.cmd 'git supfin $ARGS'
 git config guitool.Support/Finish.argprompt "Name of the new version"
 
