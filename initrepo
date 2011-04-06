@@ -64,9 +64,9 @@ fi
 
 # create local branches
 echo "Creating local branches:"
-for remote in $(git branch -r | grep -v master); do
+for remote in $(git branch -r | grep -v -E \(master\|review\)); do
 	if ! $(git branch | grep -q ${remote#origin/}); then
-		git branch ${remote#origin/} "remotes/$remote"
+		git branch --track ${remote#origin/} "remotes/$remote"
 	fi
 done
 
