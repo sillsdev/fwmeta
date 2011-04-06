@@ -111,10 +111,10 @@ if $firsttime; then
 	git config merge.tool "$mergetool"
 	git config diff.guitool "$mergetool"
 fi
-git config alias.featfin '!sh -c "git pull --rebase review develop && git flow feature finish \$1 && git push review HEAD:refs/heads/develop" -'
+git config alias.featfin '!sh -c "git checkout develop && git pull --rebase review develop && git flow feature finish \$1 && git push review HEAD:refs/heads/develop" -'
 git config alias.review '!sh -c "branch=\$(git symbolic-ref -q HEAD || git name-rev --name-only HEAD 2>/dev/null) && branch=\${branch#refs/heads/} && git push review HEAD:refs/for/\$1/\$branch" -'
-git config alias.release '!sh -c "git pull --rebase review develop && git pull --rebase review master && git flow release finish \$1 && git pull review develop && git push review --all && git push review --tags :refs/heads/release/\$1" -'
-git config alias.hotfin '!sh -c "git pull --rebase review develop && git pull --rebase review master && git flow hotfix finish \$1 && git push review --all && git push review --tags" -'
+git config alias.release '!sh -c "git checkout develop && git pull --rebase review develop && git checkout master && git pull --rebase review master && git flow release finish \$1 && git checkout develop && git pull review develop && git push review --all && git push review --tags :refs/heads/release/\$1" -'
+git config alias.hotfin '!sh -c "git checkout develop && git pull --rebase review develop && git checkout master && git pull --rebase review master && git flow hotfix finish \$1 && git push review --all && git push review --tags" -'
 sedReplace="$(dirname $0)/supfin.sh"
 sedReplace=${sedReplace//\//\\\/} # replace all / with \/
 git config alias.supfin '! sh -c "SEDREPLACE \$1" -'
