@@ -124,24 +124,24 @@ mv .git/config2 .git/config
 git config guitool.Feature/Start.cmd 'git flow feature start $ARGS'
 git config guitool.Feature/Start.argprompt yes
 git config guitool.Feature/Review.cmd 'git push review HEAD:refs/for/develop/$CUR_BRANCH'
-git config guitool.Feature/Finish.cmd 'git flow feature finish ${CUR_BRANCH#*/} && git push review HEAD:refs/heads/develop'
+git config guitool.Feature/Finish.cmd 'git featfin ${CUR_BRANCH#*/}'
 
 git config guitool.Release/Start.cmd 'git flow release start $ARGS'
 git config guitool.Release/Start.argprompt yes
 git config guitool.Release/Review.cmd 'git push review HEAD:refs/for/$CUR_BRANCH'
-git config guitool.Release/Finish.cmd 'git flow release finish ${CUR_BRANCH#*/} && git pull review develop && git push review --all && git push review --tags :refs/heads/$CUR_BRANCH'
+git config guitool.Release/Finish.cmd 'git release ${CUR_BRANCH#*/}'
 git config guitool.Release/Track.cmd 'git flow release track $ARGS'
 git config guitool.Release/Track.argprompt yes
 
 git config guitool.Hotfix/Start.cmd 'git flow hotfix start $ARGS'
 git config guitool.Hotfix/Start.argprompt yes
 git config guitool.Hotfix/Review.cmd 'git push review HEAD:refs/for/master/$CUR_BRANCH'
-git config guitool.Hotfix/Finish.cmd 'git flow hotfix finish ${CUR_BRANCH#*/} && git push review --all && git push review --tags'
+git config guitool.Hotfix/Finish.cmd 'git hotfin ${CUR_BRANCH#*/}'
 
 git config guitool.Support/Start.cmd 'git flow support start $ARGS'
 git config guitool.Support/Start.argprompt yes
 git config guitool.Support/Review.cmd 'git push review HEAD:refs/for/$CUR_BRANCH'
-git config guitool.Support/Finish.cmd 'git pull review $CUR_BRANCH && git tag -a $ARGS && git checkout develop && git pull review develop && git merge -m "Merge branch $CUR_BRANCH into develop" --no-ff $CUR_BRANCH && git push review --all && git push review --tags'
+git config guitool.Support/Finish.cmd 'git supfin $ARGS'
 git config guitool.Support/Finish.argprompt yes
 
 git config "guitool.Bypass Code Review.cmd" 'git push review $CUR_BRANCH'
