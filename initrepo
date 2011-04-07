@@ -90,14 +90,7 @@ fi
 
 # Initialize git flow
 if ! $(git config --get gitflow.branch.master > /dev/null); then
-	git flow init > /dev/null << END
-
-
-
-
-
-
-END
+	git flow init -d
 fi
 
 # adding some alias
