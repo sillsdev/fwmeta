@@ -146,11 +146,10 @@ git config guitool.Support/Finish.argprompt "Name of the new version"
 git config "guitool.Bypass Code Review.cmd" 'git push review $CUR_BRANCH'
 git config "guitool.Interactive Rebase.cmd" 'git rebase -i $REVISION'
 git config "guitool.Interactive Rebase.revprompt" yes
-git config "guitool.Visual Diff.cmd" 'git difftool -y $FILENAME'
-git config "guitool.Visual Diff.needsfile" yes
-git config "guitool.Visual Diff.noconsole" yes
+git config "guitool. Visual Diff.cmd" 'git difftool -y $FILENAME'
+git config "guitool. Visual Diff.needsfile" yes
+git config "guitool. Visual Diff.noconsole" yes
 git config "guitool.Visual Merge.cmd" 'git mergetool -y'
 git config "guitool.Visual Merge.noconsole" yes
 git config "guitool.Visual Merge and Push.cmd" 'git mergepush'
 git config "guitool.Visual Merge.noconsole" yes
-
