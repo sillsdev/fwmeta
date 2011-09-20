@@ -105,16 +105,17 @@ if $firsttime; then
 	git config merge.tool "$mergetool"
 	git config diff.guitool "$mergetool"
 fi
-git config alias.featfin '!sh -c "git checkout develop && git pull --rebase review develop && git flow feature finish \$1 && git push review HEAD:refs/heads/develop" -'
-git config alias.review '!sh -c "branch=\$(git symbolic-ref -q HEAD || git name-rev --name-only HEAD 2>/dev/null) && branch=\${2:-${branch#refs/heads/}} && git push review HEAD:refs/for/\$1/\$branch" -'
-git config alias.release '!sh -c "git checkout develop && git pull --rebase review develop && git checkout master && git pull --rebase review master && git flow release finish \$1 && git checkout develop && git pull review develop && git push review --all && git push review --tags :refs/heads/release/\$1" -'
-git config alias.hotfin '!sh -c "git checkout develop && git pull --rebase review develop && git checkout master && git pull --rebase review master && git flow hotfix finish \$1 && git push review --all && git push review --tags" -'
-sedReplace="$(dirname $0)/supfin.sh"
+sedReplace="$(dirname $0)"
 sedReplace=${sedReplace//\//\\\/} # replace all / with \/
-git config alias.supfin '! sh -c "SEDREPLACE \$1" -'
+git config alias.featfin '!sh -c "SEDREPLACE/featfin.sh \$1" -'
+git config alias.review '!sh -c "branch=\$(git symbolic-ref -q HEAD || git name-rev --name-only HEAD 2>/dev/null) && branch=\${2:-${branch#refs/heads/}} && git push review HEAD:refs/for/\$1/\$branch" -'
+git config alias.release '!sh -c "SEDREPLACE/relfin.sh \$1" -'
+git config alias.hotfin '!sh -c "SEDREPLACE/hotfin.sh \$1" -'
+git config alias.supfin '!sh -c "SEDREPLACE/supfin.sh \$1" -'
+git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push review --all && git push review --tags" -'
+# do this last so that we can replace multiple entries at once
 sed "s/SEDREPLACE/$sedReplace/g" .git/config 2>&1 > .git/config2
 mv .git/config2 .git/config
-git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push review --all && git push review --tags" -'
 
 git config guitool.Feature/Start.cmd 'git flow feature start $ARGS'
 git config guitool.Feature/Start.argprompt "Feature name (JIRA number)"
