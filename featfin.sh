@@ -14,6 +14,6 @@ fi
 feat=${1:-$branch}
 
 git checkout develop
-git pull --rebase review develop
+git pull --rebase origin develop
 git flow feature finish $feat
-git push review HEAD:refs/heads/develop
+git push origin HEAD:refs/heads/develop

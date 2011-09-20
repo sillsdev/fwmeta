@@ -15,11 +15,11 @@ fi
 rel=${1:-$branch}
 
 git checkout develop
-git pull --rebase review develop
+git pull --rebase origin develop
 git checkout master
-git pull --rebase review master
+git pull --rebase origin master
 git flow release finish $rel
 git checkout develop
-git pull review develop
-git push review --all
-git push review --tags :refs/heads/$flow$rel
+git pull origin develop
+git push origin --all
+git push origin --tags :refs/heads/$flow$rel

@@ -15,11 +15,11 @@ if [ "$branch" == "${branch#$(git config --get gitflow.prefix.support)}" ]; then
 	exit 1
 fi
 
-git pull --rebase review $branch 
+git pull --rebase origin $branch
 git tag -a $1
 git checkout develop
-git pull --rebase review develop
+git pull --rebase origin develop
 git merge -m 'Merge branch "$branch" into develop' --no-ff $branch
-git push review --all
-git push review --tags
+git push origin --all
+git push origin --tags
 

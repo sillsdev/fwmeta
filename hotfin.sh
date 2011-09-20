@@ -15,9 +15,9 @@ fi
 rel=${1:-$branch}
 
 git checkout develop
-git pull --rebase review develop
+git pull --rebase origin develop
 git checkout master
-git pull --rebase review master
+git pull --rebase origin master
 git flow hotfix finish $rel
-git push review --all
-git push review --tags
+git push origin --all
+git push origin --tags
