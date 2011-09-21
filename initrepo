@@ -61,12 +61,11 @@ else
 	git clone $origin $target
 	cd $target
 	git remote set-url --push origin "ssh://${gerritusername}@hydra.wycliffe.ca:29418/$gerritproject"
-	git config remote.origin.push "refs/heads/*:refs/for/*"
 fi
 
 # create local branches
 echo "Creating local branches:"
-for remote in $(git branch -r | grep -v master); do
+for remote in $(git branch -r | grep -v -E \(master\|review\)); do
 	if ! $(git branch | grep -q ${remote#origin/}); then
 		git branch --track ${remote#origin/} "remotes/$remote"
 	fi
@@ -74,6 +73,14 @@ done
 
 if $firsttime; then
 	git checkout develop
+fi
+
+# setup
+if ! $(git config --get remote.review.url > /dev/null); then
+	echo "Updating configuration:"
+	git remote add review "ssh://${gerritusername}@hydra.wycliffe.ca:29418/$gerritproject"
+	git config remote.review.push "refs/heads/*:refs/for/*"
+	git config gitflow.origin review
 fi
 
 # install hook
@@ -105,18 +112,18 @@ fi
 sedReplace="$(dirname $0)"
 sedReplace=${sedReplace//\//\\\/} # replace all / with \/
 git config alias.featfin '!sh -c "SEDREPLACE/featfin.sh \$1" -'
-git config alias.review '!sh -c "branch=\$(git symbolic-ref -q HEAD || git name-rev --name-only HEAD 2>/dev/null) && branch=\${2:-${branch#refs/heads/}} && git push origin HEAD:refs/for/\$1/\$branch" -'
+git config alias.review '!sh -c "SEDREPLACE/review.sh \$1 \$2" -'
 git config alias.release '!sh -c "SEDREPLACE/relfin.sh \$1" -'
 git config alias.hotfin '!sh -c "SEDREPLACE/hotfin.sh \$1" -'
 git config alias.supfin '!sh -c "SEDREPLACE/supfin.sh \$1" -'
-git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push origin --all && git push origin --tags" -'
+git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push review --all && git push review --tags" -'
 # do this last so that we can replace multiple entries at once
 sed "s/SEDREPLACE/$sedReplace/g" .git/config 2>&1 > .git/config2
 mv .git/config2 .git/config
 
 git config guitool.Feature/Start.cmd 'git flow feature start $ARGS'
 git config guitool.Feature/Start.argprompt "Feature name (JIRA number)"
-git config "guitool.Feature/Submit for Code Review.cmd" 'git push origin HEAD:refs/for/develop/$CUR_BRANCH'
+git config "guitool.Feature/Submit for Code Review.cmd" 'git push review HEAD:refs/for/develop/$CUR_BRANCH'
 git config guitool.Feature/Finish.cmd 'git featfin ${CUR_BRANCH#*/}'
 git config guitool.Feature/Publish.cmd 'git flow feature publish ${CUR_BRANCH#*/}'
 git config guitool.Feature/Track.cmd 'git flow feature track $ARGS'
@@ -124,7 +131,7 @@ git config guitool.Feature/Track.argprompt "Name of the feature"
 
 git config guitool.Release/Start.cmd 'git flow release start $ARGS'
 git config guitool.Release/Start.argprompt "Name of the release"
-git config "guitool.Release/Submit for Code Review.cmd" 'git push origin HEAD:refs/for/$CUR_BRANCH'
+git config "guitool.Release/Submit for Code Review.cmd" 'git push review HEAD:refs/for/$CUR_BRANCH'
 git config guitool.Release/Finish.cmd 'git release ${CUR_BRANCH#*/}'
 git config guitool.Release/Publish.cmd 'git flow release publish ${CUR_BRANCH#*/}'
 git config guitool.Release/Track.cmd 'git flow release track $ARGS'
@@ -132,16 +139,16 @@ git config guitool.Release/Track.argprompt "Name of the release"
 
 git config guitool.Hotfix/Start.cmd 'git flow hotfix start $ARGS'
 git config guitool.Hotfix/Start.argprompt "Name of the fixed version"
-git config "guitool.Hotfix/Submit for Code Review.cmd" 'git push origin HEAD:refs/for/master/$CUR_BRANCH'
+git config "guitool.Hotfix/Submit for Code Review.cmd" 'git push review HEAD:refs/for/master/$CUR_BRANCH'
 git config guitool.Hotfix/Finish.cmd 'git hotfin ${CUR_BRANCH#*/}'
 
 git config guitool.Support/Start.cmd 'git flow support start $ARGS'
 git config guitool.Support/Start.argprompt "Name of the support branch and tag it is based on (e.g. '1.0 1.0')"
-git config "guitool.Support/Submit for Code Review.cmd" 'git push origin HEAD:refs/for/$CUR_BRANCH'
+git config "guitool.Support/Submit for Code Review.cmd" 'git push review HEAD:refs/for/$CUR_BRANCH'
 git config guitool.Support/Finish.cmd 'git supfin $ARGS'
 git config guitool.Support/Finish.argprompt "Name of the new version"
 
-git config "guitool.Bypass Code Review.cmd" 'git push origin $CUR_BRANCH'
+git config "guitool.Bypass Code Review.cmd" 'git push review $CUR_BRANCH'
 git config "guitool.Interactive Rebase.cmd" 'git rebase -i $REVISION'
 git config "guitool.Interactive Rebase.revprompt" yes
 git config "guitool. Visual Diff.cmd" 'git difftool -y $FILENAME'
