@@ -112,6 +112,7 @@ fi
 sedReplace="$(dirname $0)"
 sedReplace=${sedReplace//\//\\\/} # replace all / with \/
 git config alias.featfin '!sh -c "SEDREPLACE/featfin.sh \$1" -'
+git config alias.featrebase '!sh -c "SEDREPLACE/rebase.sh" -'
 git config alias.review '!sh -c "SEDREPLACE/review.sh \$1 \$2" -'
 git config alias.release '!sh -c "SEDREPLACE/relfin.sh \$1" -'
 git config alias.hotfin '!sh -c "SEDREPLACE/hotfin.sh \$1" -'
@@ -128,6 +129,7 @@ git config guitool.Feature/Finish.cmd 'git featfin ${CUR_BRANCH#*/}'
 git config guitool.Feature/Publish.cmd 'git flow feature publish ${CUR_BRANCH#*/}'
 git config guitool.Feature/Track.cmd 'git flow feature track $ARGS'
 git config guitool.Feature/Track.argprompt "Name of the feature"
+git config guitool.Feature/Rebase.cmd 'git featrebase'
 
 git config guitool.Release/Start.cmd 'git flow release start $ARGS'
 git config guitool.Release/Start.argprompt "Name of the release"
