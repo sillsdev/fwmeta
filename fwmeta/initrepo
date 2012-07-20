@@ -239,6 +239,7 @@ declare -A locations=(
 	[mono-basic]=mono/mono-basic
 	[gtk-sharp]=mono/gtk-sharp
 	[libgdiplus]=mono/libgdiplus
+	[test]=test
 )
 
 initrepo fwmeta
