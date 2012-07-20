@@ -1,0 +1,43 @@
+#!/bin/sh
+# pull 
+
+# function copied from https://github.com/git/git/blob/master/git-sh-setup.sh
+require_clean_work_tree () {
+	git rev-parse --verify HEAD >/dev/null || exit 1
+	git update-index -q --ignore-submodules --refresh
+	err=0
+
+	if ! git diff-files --quiet --ignore-submodules; then
+		echo >&2 "Cannot $1: You have unstaged changes."
+		err=1
+	fi
+
+	if ! git diff-index --cached --quiet --ignore-submodules HEAD -- ; then
+		if [ $err = 0 ]; then
+			echo >&2 "Cannot $1: Your index contains uncommitted changes."
+		else
+			echo >&2 "Additionally, your index contains uncommitted changes."
+		fi
+		err=1
+	fi
+
+	if [ $err = 1 ]; then
+		test -n "$2" && echo >&2 "$2"
+		exit 1
+	fi
+}
+
+branch="$(git rev-parse --symbolic-full-name --abbrev-ref HEAD)"
+prevrev=$(git rev-parse master)
+
+require_clean_work_tree "update fwmeta repo" "Please commit or stash them"
+
+git checkout master
+git pull origin master
+if [ "$prevrev" != "$(git rev-parse master)" ]; then
+	cwd = $(pwd)
+	cd $(git rev-parse --show-toplevel)
+	fwmeta/initrepo
+	cd $cwd
+fi
+git checkout $branch
