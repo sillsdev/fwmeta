@@ -178,6 +178,7 @@ if [ -z "$username" ]; then
 fi
 if [ -z "$useremail" ]; then
 	tmpemail="${username// /_}@sil.org"
+	tmpemail="${tmpemail,,}"
 	useremail="${useremail:-$tmpemail}"
 	useremail=$(readdefault "Email address" "$useremail")
 	savevalues=true
