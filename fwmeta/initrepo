@@ -161,7 +161,10 @@ reset=0
 cd $basedir
 
 # Sanity checks
-[ -z "$(which git-flow)" ] && echo "Can't find git-flow. Please install." && exit 1
+if ! git flow version &>/dev/null; then
+	echo "Can't find git-flow. Please install."
+	exit 1
+fi
 
 gerritusername=$(git config --get fwinit.gerrituser)
 username=$(git config --get user.name)
