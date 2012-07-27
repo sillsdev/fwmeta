@@ -208,7 +208,7 @@ fi
 repolist=$(git config --get fwinit.repolist)
 [ $reset == 1 ] && repolist=""
 if [ -z "$repolist" ]; then
-	echo "Available repos: FieldWorks, FwDebian, FwDocumentation, FwHelps, FwInstaller, FwMovies, FwSampleProjects, FwSupportTools, WorldPad"
+	echo "Available repos: FieldWorks FwDebian FwDocumentation FwHelps FwInstaller FwMovies FwSampleProjects FwSupportTools WorldPad"
 	defaultlist="FieldWorks FwSampleProjects"
 	repolist=$(readdefault "Repos to clone" "$defaultlist")
 	git config fwinit.repolist "$repolist"
@@ -217,7 +217,7 @@ fi
 #	linuxrepos=$(git config --get fwinit.linuxrepos)
 #	[ $reset == 1 ] && linuxrepos=""
 #	if [ -z "$linuxrepos" ]; then
-#		echo "Additional repos for Linux: mono, mono-basic, gtk-sharp, libgdiplus"
+#		echo "Additional repos for Linux: mono mono-basic gtk-sharp libgdiplus"
 #		linuxrepos=$(readdefault "Additional Linux repos" "mono mono-basic gtk-sharp libgdiplus")
 #		git config fwinit.linuxrepos "$linuxrepos"
 #	fi
