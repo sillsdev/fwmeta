@@ -180,15 +180,17 @@ if [ -z "$username" ]; then
 	savevalues=true
 fi
 if [ -z "$useremail" ]; then
-	tmpemail="${username// /_}@sil.org"
-	tmpemail="${tmpemail,,}"
-	useremail="${useremail:-$tmpemail}"
+	defemail="${username// /_}@sil.org"
+	defemail="${defemail,,}"
+	useremail="${useremail:-$defemail}"
 	useremail=$(readdefault "Email address" "$useremail")
 	savevalues=true
 fi
 if [ -z "$gerritusername" ]; then
-	gerritusername="${gerritusername:-$username}"
-	gerritusername=$(readdefault "Gerrit username" "${gerritusername:-$(whoami)}")
+	defname="${username// /_}"
+	defname="${defname,,}"
+	gerritusername="${gerritusername:-$defname}"
+	gerritusername=$(readdefault "Gerrit username" "${gerritusername}")
 	savevalues=true
 fi
 
