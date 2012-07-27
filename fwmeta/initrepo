@@ -173,7 +173,7 @@ savevalues=false
 
 # Query user for variables
 if [ -z "$username" ]; then
-	username=$(readdefault "Full name" "${username:-$(whoami)}")
+	username=$(readdefault "Full name" "$username")
 	savevalues=true
 fi
 if [ -z "$useremail" ]; then
