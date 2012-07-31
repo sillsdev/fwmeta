@@ -179,16 +179,14 @@ if [ -z "$username" ]; then
 	username=$(readdefault "Full name" "$username")
 	savevalues=true
 fi
+defname="${username// /_}"
+defname="${defname,,}"
 if [ -z "$useremail" ]; then
-	defemail="${username// /_}@sil.org"
-	defemail="${defemail,,}"
-	useremail="${useremail:-$defemail}"
+	useremail="${useremail:-$defname@sil.org}"
 	useremail=$(readdefault "Email address" "$useremail")
 	savevalues=true
 fi
 if [ -z "$gerritusername" ]; then
-	defname="${username// /_}"
-	defname="${defname,,}"
 	gerritusername="${gerritusername:-$defname}"
 	gerritusername=$(readdefault "Gerrit username" "${gerritusername}")
 	savevalues=true
