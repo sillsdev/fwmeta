@@ -26,11 +26,18 @@ function readdefault {
 	echo "${tmp:-$2}"
 }
 
-key() {
-	echo "${1%%:*}"
-}
-value() {
-	echo "${1##*:}"
+fullname()
+{
+	local n f1 f2 f3 f4 f5 f6 f7
+	n=$(whoami)
+	if [ -r /etc/passwd ]; then
+		while IFS=: read -r f1 f2 f3 f4 f5 f6 f7
+		do
+			[ "$f1" == "$n" ] && echo "${f5%%,*}"
+		done </etc/passwd
+	else
+		echo "$n"
+	fi
 }
 
 initrepo() {
@@ -176,6 +183,7 @@ savevalues=false
 
 # Query user for variables
 if [ -z "$username" ]; then
+	username="${username:-$(fullname)}"
 	username=$(readdefault "Full name" "$username")
 	savevalues=true
 fi
