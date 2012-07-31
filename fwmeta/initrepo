@@ -43,13 +43,13 @@ initrepo() {
 	git init .
 
 	# Initialize origin
-	if ! $(git remote | grep origin > /dev/null); then
+	if ! git remote | grep -q origin; then
 		addorigin=1
 		git remote add origin "$REPOURI/$repo.git"
 	fi
 
 	# setup push URL
-	if ! $(git config --get-all remote.origin.pushurl | grep -q "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"); then
+	if ! git config --get-all remote.origin.pushurl | grep -q "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"; then
 		git remote set-url --add --push origin "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"
 	fi
 
@@ -59,7 +59,7 @@ initrepo() {
 	git config notes.rewriteRef "refs/notes/*"
 	git config notes.displayRef "refs/notes/review"
 	git config notes.displayRef "refs/notes/git-p4"
-	if ! $(git config --get-all remote.origin.fetch | grep -q notes) ; then
+	if ! git config --get-all remote.origin.fetch | grep -q notes; then
 		git config --add remote.origin.fetch "+refs/notes/*:refs/notes/*"
 	fi
 
@@ -80,7 +80,7 @@ initrepo() {
 	fi
 
 	# Initialize git flow
-	if ! $(git config --get gitflow.branch.master > /dev/null); then
+	if ! git config --get gitflow.branch.master >/dev/null; then
 		git flow init -d
 	fi
 
