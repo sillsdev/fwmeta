@@ -23,7 +23,7 @@ function readdefault {
 	# $1: prompt
 	# $2: default value
 	read -p "$1 ($2): " tmp
-	echo ${tmp:-$2}
+	echo "${tmp:-$2}"
 }
 
 key() {
@@ -38,19 +38,19 @@ initrepo() {
 	loc=${locations[$repo]}
 
 	cwd=$(pwd)
-	mkdir -p $loc
-	cd $loc
+	mkdir -p "$loc"
+	cd "$loc"
 	git init .
 
 	# Initialize origin
 	if ! $(git remote | grep origin > /dev/null); then
 		addorigin=1
-		git remote add origin $REPOURI/$repo.git
+		git remote add origin "$REPOURI/$repo.git"
 	fi
 
 	# setup push URL
 	if ! $(git config --get-all remote.origin.pushurl | grep -q "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"); then
-		git remote set-url --add --push origin ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git
+		git remote set-url --add --push origin "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"
 	fi
 
 	# update settings for notes
@@ -73,9 +73,9 @@ initrepo() {
 	if [ ! -f .git/hooks/commit-msg ]; then
 		echo "Getting commit hook:"
 		if [ -z "$2" ]; then
-			scp -p -P $GERRITPORT $gerritusername@$GERRIT:hooks/commit-msg .git/hooks
+			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks
 		else
-			cp $2/.git/hooks/commit-msg .git/hooks/
+			cp "$2/.git/hooks/commit-msg" .git/hooks/
 		fi
 	fi
 
@@ -95,13 +95,13 @@ initrepo() {
 				git config core.editor gedit
 				git config gui.editor gedit
 			else
-				git config core.editor $(dirname $0)/winedit.sh
+				git config core.editor "$(dirname $0)/winedit.sh"
 			fi
 			git config merge.tool "$mergetool"
 			git config diff.guitool "$mergetool"
 			git config fwinit.initialized 1
 		fi
-		sedReplace="$(dirname $0)"
+		sedReplace="$(dirname "$0")"
 		sedReplace=${sedReplace//\//\\\/} # replace all / with \/
 		git config alias.featfin '!sh -c "SEDREPLACE/featfin.sh \$1" -'
 		git config alias.review '!sh -c "SEDREPLACE/review.sh \$1 \$2" -'
@@ -150,15 +150,15 @@ initrepo() {
 		git config "guitool.Visual Merge.noconsole" yes
 		git config "guitool.Visual Merge and Push.cmd" 'git mergepush'
 		git config "guitool.Visual Merge.noconsole" yes
-		git config fwinit.aliasversion $THISALIASVERSION
+		git config fwinit.aliasversion "$THISALIASVERSION"
 	fi
-	cd $cwd
+	cd "$cwd"
 }
 
-basedir=$(readlink -f $(dirname $0)/..)
+basedir=$(readlink -f "$(dirname "$0")/..")
 reset=0
 [ "$1" == "--reset" ] && reset=1
-cd $basedir
+cd "$basedir"
 
 # Sanity checks
 if ! git flow version &>/dev/null; then
@@ -194,7 +194,7 @@ if [ -z "$gerritusername" ]; then
 	savevalues=true
 fi
 
-if $savevalues; then
+if "$savevalues"; then
 	# Store variables for later use
 	git config --global user.name "$username"
 	git config --global user.email "$useremail"
@@ -206,7 +206,7 @@ if [ -z "$mergetool" ]; then
 fi
 
 repolist=$(git config --get fwinit.repolist)
-[ $reset == 1 ] && repolist=""
+[ "$reset" == 1 ] && repolist=""
 if [ -z "$repolist" ]; then
 	echo "Available repos: FieldWorks FwDebian FwDocumentation FwHelps FwInstaller FwMovies FwSampleProjects FwSupportTools WorldPad"
 	defaultlist="FieldWorks FwSampleProjects"
@@ -215,7 +215,7 @@ if [ -z "$repolist" ]; then
 fi
 #if [ "$(uname -s)" == "Linux" ]; then
 #	linuxrepos=$(git config --get fwinit.linuxrepos)
-#	[ $reset == 1 ] && linuxrepos=""
+#	[ "$reset" == 1 ] && linuxrepos=""
 #	if [ -z "$linuxrepos" ]; then
 #		echo "Additional repos for Linux: mono mono-basic gtk-sharp libgdiplus"
 #		linuxrepos=$(readdefault "Additional Linux repos" "mono mono-basic gtk-sharp libgdiplus")
@@ -223,7 +223,7 @@ fi
 #	fi
 #fi
 branchlist=$(git config --get fwinit.branchlist)
-[ $reset == 1 ] && branchlist=""
+[ "$reset" == 1 ] && branchlist=""
 if [ -z "$branchlist" ]; then
 	branchlist=$(readdefault "Branches to fetch" "master develop")
 	git config fwinit.branchlist "$branchlist"
@@ -251,5 +251,5 @@ declare -A locations=(
 initrepo fwmeta
 
 for repo in $repolist; do
-	initrepo $repo $basedir
+	initrepo "$repo" "$basedir"
 done
