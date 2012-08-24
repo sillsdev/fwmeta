@@ -111,7 +111,11 @@ initrepo()
 	git remote set-branches --add origin $branchlist
 	git fetch origin
 
-	[ -n "$addorigin" ] && git checkout develop
+	if [ -n "$addorigin" ]; then
+		# we need those two branches so that we can successfully initialize git-flow
+		git checkout master
+		git checkout develop
+	fi
 
 	# install hook
 	if [ ! -f .git/hooks/commit-msg ]; then
