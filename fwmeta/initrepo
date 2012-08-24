@@ -79,6 +79,11 @@ initrepo()
 	cd "$loc"
 	git init .
 
+	if [ "$reset" == "1" ]; then
+		git config --unset fwinit.initialized
+		git config --unset fwinit.aliasversion
+	fi
+
 	# Initialize origin
 	if ! git remote | grep -q origin; then
 		addorigin=1
@@ -89,6 +94,9 @@ initrepo()
 	if ! git config --get-all remote.origin.pushurl | grep -q "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"; then
 		git remote set-url --add --push origin "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"
 	fi
+
+	# Remove all fetch statements for origin so that we can add them again
+	git config --unset-all remote.origin.fetch
 
 	# update settings for notes
 	git config notes.rewrite.amend true
