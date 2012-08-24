@@ -140,8 +140,8 @@ initrepo()
 				# there's some conflict here. When we use git from the command line
 				# we don't want gedit here, but when we use git-gui we can't use vi.
 				# So we set it to gedit for now; user might have to adjust later.
-				git config core.editor gedit
-				git config gui.editor gedit
+				git config core.editor "gedit -w"
+				git config gui.editor "gedit -w"
 			else
 				git config core.editor "$(dirname $0)/winedit.sh"
 			fi
