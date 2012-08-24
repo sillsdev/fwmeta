@@ -94,14 +94,13 @@ initrepo()
 	git config notes.rewrite.amend true
 	git config notes.rewrite.rebase true
 	git config notes.rewriteRef "refs/notes/*"
-	git config notes.displayRef "refs/notes/review"
-	git config notes.displayRef "refs/notes/git-p4"
+	git config notes.displayRef "refs/notes/*"
 	if ! git config --get-all remote.origin.fetch | grep -q notes; then
 		git config --add remote.origin.fetch "+refs/notes/*:refs/notes/*"
 	fi
 
 	# fetch branches and setup tracking branch
-	git remote set-branches origin $branchlist
+	git remote set-branches --add origin $branchlist
 	git fetch origin
 
 	[ -n "$addorigin" ] && git checkout develop
