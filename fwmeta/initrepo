@@ -40,7 +40,37 @@ fullname()
 	fi
 }
 
-initrepo() {
+# Get the directory of the fwmeta repo
+getfwmetadir()
+{
+	local dir olddir curdir
+	curdir=$(pwd)
+	dir=$curdir
+
+	while true; do
+		cd $dir
+		dir=$(git rev-parse --show-toplevel 2> /dev/null)
+		if [ -z $dir ]; then
+			echo "$curdir"
+			return
+		fi
+		cd $dir
+		if test -d fwmeta && git config --file .git/config --get fwinit.initialized >/dev/null; then
+			echo "$dir"
+			return
+		else
+			olddir="$dir"
+			dir=$(dirname "$dir")
+			if [ "$olddir" == "$dir" ]; then
+				echo "$curdir"
+				return
+			fi
+		fi
+	done
+}
+
+initrepo()
+{
 	repo=$1
 	loc=${locations[$repo]}
 
@@ -87,14 +117,14 @@ initrepo() {
 	fi
 
 	# Initialize git flow
-	if ! git config --get gitflow.branch.master >/dev/null; then
+	if ! git config --get gitflow.branch.master &>/dev/null; then
 		git flow init -d
 	fi
 
 	if [ "$(git config --get fwinit.aliasversion)" != "$THISALIASVERSION" ]; then
 		# adding some alias
 		echo "Adding alias:"
-		if [ -n "$(git config --get fwinit.initialized)" ]; then
+		if ! git config --get fwinit.initialized &>/dev/null; then
 			if [ "$(uname)" == "Linux" ]; then
 				# there's some conflict here. When we use git from the command line
 				# we don't want gedit here, but when we use git-gui we can't use vi.
@@ -162,10 +192,24 @@ initrepo() {
 	cd "$cwd"
 }
 
-basedir=$(readlink -f "$(dirname "$0")/..")
+basedir=$(getfwmetadir)
+cd "$basedir"
+if [ "$1" != "--recursive" ]; then
+	if [ -d ".git" ]; then
+		# fwmeta repo exists. Just update it
+		git pull --rebase origin
+	else
+		# fwmeta repo doesn't exist yet. Clone it.
+		git clone git://gerrit.lsdev.sil.org/fwmeta.git
+		basedir=$basedir/fwmeta
+	fi
+	# recursive call so that we run with the latest version
+	$basedir/fwmeta/initrepo --recursive $*
+	exit
+fi
+shift
 reset=0
 [ "$1" == "--reset" ] && reset=1
-cd "$basedir"
 
 # Sanity checks
 if ! git flow version &>/dev/null; then
