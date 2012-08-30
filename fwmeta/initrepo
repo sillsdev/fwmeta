@@ -1,6 +1,8 @@
 #!/bin/bash
 # Initializes and clones git repos needed for FW development
 
+set -e
+
 GERRIT="gerrit.lsdev.sil.org"
 GERRITPORT=59418
 
@@ -17,28 +19,6 @@ GERRITPORT=59418
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
 THISALIASVERSION=2
-
-function readdefault {
-	# parameters:
-	# $1: prompt
-	# $2: default value
-	read -p "$1 ($2): " tmp
-	echo "${tmp:-$2}"
-}
-
-fullname()
-{
-	local n f1 f2 f3 f4 f5 f6 f7
-	n=$(whoami)
-	if [ -r /etc/passwd ]; then
-		while IFS=: read -r f1 f2 f3 f4 f5 f6 f7
-		do
-			[ "$f1" == "$n" ] && echo "${f5%%,*}"
-		done </etc/passwd
-	else
-		echo "$n"
-	fi
-}
 
 # Get the directory of the fwmeta repo
 getfwmetadir()
@@ -222,15 +202,17 @@ initrepo()
 		git config "guitool.Visual Merge.noconsole" yes
 		git config "guitool.Visual Merge and Push.cmd" 'git mergepush'
 		git config "guitool.Visual Merge.noconsole" yes
+
 		git config fwinit.aliasversion "$THISALIASVERSION"
 	fi
 	cd "$cwd"
 }
 
+
 basedir=$(getfwmetadir)
 cd "$basedir"
 if [ "$1" != "--recursive" ]; then
-	if [ -d ".git" ]; then
+	if [ -d ".git" ] && git remote | grep origin ; then
 		# fwmeta repo exists. Just update it
 		git pull --rebase origin
 	else
@@ -245,6 +227,9 @@ fi
 shift
 reset=0
 [ "$1" == "--reset" ] && reset=1
+
+. "$basedir/fwmeta/functions.sh"
+. "$basedir/fwmeta/repodefs.sh"
 
 # Sanity checks
 if ! git flow version &>/dev/null; then
@@ -313,25 +298,6 @@ if [ -z "$branchlist" ]; then
 	branchlist=$(readdefault "Branches to fetch" "master develop")
 	git config fwinit.branchlist "$branchlist"
 fi
-
-# the locations of the git repos
-declare -A locations=(
-	[fwmeta]=.
-	[FieldWorks]=fw
-	[FwMovies]="fw/DistFiles/Language Explorer/Movies"
-	[FwSampleProjects]="fw/DistFiles/ReleaseData"
-	[FwDocumentation]="fw/Doc"
-	[FwHelps]="fw/DistFiles/Helps"
-	[FwDebian]="fw/debian"
-	[FwInstaller]="fw/Installer"
-	[FwSupportTools]="fw/SupportTools"
-	[WorldPad]="WorldPad"
-	[mono]=mono/mono
-	[mono-basic]=mono/mono-basic
-	[gtk-sharp]=mono/gtk-sharp
-	[libgdiplus]=mono/libgdiplus
-	[test]=test
-)
 
 initrepo fwmeta
 
