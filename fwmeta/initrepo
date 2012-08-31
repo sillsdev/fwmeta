@@ -57,7 +57,7 @@ initrepo()
 	basedir=$3
 
 	echo
-	echo "${_bold}Initializing project $repo${_normal}"
+	echo -e "${_bold}Initializing project $repo${_normal}"
 
 	cwd=$(pwd)
 	mkdir -p "$loc"
