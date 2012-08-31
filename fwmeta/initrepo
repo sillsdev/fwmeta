@@ -102,11 +102,20 @@ initrepo()
 		git checkout -q develop
 	fi
 
-	# install hook
+	# update settings for whitespace checking. If it's necessary to change the behavior for
+	# certain file types we can add a line to .gitattributes, e.g.
+	# *.py whitespace=-indent-with-non-tab
+	git config core.whitespace "blank-at-eol,space-before-tab,indent-with-non-tab,blank-at-eof,tabwidth=4"
+	git config apply.ignorewhitespace change
+	git config apply.whitespace fix
+
+	# install hooks
 	if [ ! -f .git/hooks/commit-msg ]; then
 		echo "Installing hooks:"
+		cp -f "$basedir/fwmeta/hooks/pre-commit" .git/hooks/
 		cp -f "$basedir/fwmeta/hooks/commit-msg" .git/hooks/
 		# make it less likely that user replaces it accidentally
+		chmod -w .git/hooks/pre-commit
 		chmod -w .git/hooks/commit-msg
 		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
 		if [ -z "$basedir" ]; then
