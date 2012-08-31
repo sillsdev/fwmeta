@@ -18,7 +18,7 @@ GERRITPORT=59418
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=2
+THISALIASVERSION=3
 
 # Get the directory of the fwmeta repo
 getfwmetadir()
@@ -163,6 +163,7 @@ initrepo()
 		git config alias.release '!sh -c "SEDREPLACE/relfin.sh \$1" -'
 		git config alias.hotfin '!sh -c "SEDREPLACE/hotfin.sh \$1" -'
 		git config alias.supfin '!sh -c "SEDREPLACE/supfin.sh \$1" -'
+		git config alias.pullrebase '!sh -c "SEDREPLACE/pullrebase.sh" -'
 		git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push origin && git push origin --tags" -'
 		# do this last so that we can replace multiple entries at once
 		sed "s/SEDREPLACE/$sedReplace/g" .git/config 2>&1 > .git/config2
@@ -208,6 +209,7 @@ initrepo()
 		git config "guitool.Visual Merge and Push.cmd" 'git mergepush'
 		git config "guitool.Visual Merge.noconsole" yes
 
+		git config guitool.Rebase.cmd 'git pullrebase'
 		git config fwinit.aliasversion "$THISALIASVERSION"
 	fi
 	cd "$cwd"
