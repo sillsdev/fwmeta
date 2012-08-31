@@ -18,10 +18,11 @@ GERRITPORT=59418
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=3
+THISALIASVERSION=4
 
 # Get the directory of the fwmeta repo
-getfwmetadir()
+# we can't use getfwmetadir from functions.sh because we might not have that file yet
+getfwmetadirBootStrap()
 {
 	local dir olddir curdir
 	curdir=$(pwd)
@@ -180,6 +181,7 @@ initrepo()
 		git config alias.supfin '!sh -c "SEDREPLACE/supfin.sh \$1" -'
 		git config alias.pullrebase '!sh -c "SEDREPLACE/pullrebase.sh" -'
 		git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push origin && git push origin --tags" -'
+		git config alias.globstat '!sh -c "SEDREPLACE/repostatus \$1" -'
 		# do this last so that we can replace multiple entries at once
 		sed "s/SEDREPLACE/$sedReplace/g" .git/config 2>&1 > .git/config2
 		mv .git/config2 .git/config
@@ -225,13 +227,15 @@ initrepo()
 		git config "guitool.Visual Merge.noconsole" yes
 
 		git config guitool.Rebase.cmd 'git pullrebase'
+		git config "guitool.Global Repo Status.cmd" 'git globstat --no-colors'
+
 		git config fwinit.aliasversion "$THISALIASVERSION"
 	fi
 	cd "$cwd"
 }
 
 
-basedir=$(getfwmetadir)
+basedir=$(getfwmetadirBootStrap)
 cd "$basedir"
 if [ "$1" != "--recursive" ]; then
 	if [ -d ".git" ] && git remote | grep -q origin ; then
@@ -239,7 +243,7 @@ if [ "$1" != "--recursive" ]; then
 		# If we are then update the repo, otherwise assume we're in the middle of
 		# developing some changes, so we leave it alone.
 		if git rev-parse --abbrev-ref --symbolic-full-name @{u} &> /dev/null; then
-		git pull --rebase origin
+			git pull --rebase origin
 		fi
 	else
 		# fwmeta repo doesn't exist yet. Clone it.

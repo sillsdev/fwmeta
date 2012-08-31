@@ -1,0 +1,40 @@
+#!/bin/bash
+# Show the status for all repos defined in repodefs.sh
+
+NOCOLORS=$1
+
+# need to unset GIT_WORK_TREE and GIT_DIR when running from git gui
+unset GIT_WORK_TREE
+unset GIT_DIR
+
+olddir=$(pwd)
+cd "$(dirname "$0")"
+basedir=$(git rev-parse --show-toplevel)
+cd $olddir
+
+. "$basedir/fwmeta/repodefs.sh"
+. "$basedir/fwmeta/functions.sh"
+
+if [ ! -z $NOCOLORS ] ; then
+	_nl="\n"
+fi
+
+fwmetadir=$(getfwmetadir)
+
+# show the status for repo $1 in directory $2
+showstatus()
+{
+	cd "$fwmetadir/$2"
+	echo -e "$(printf "${_nl}${_bold}%-47s %s${_normal}" "project $1/" "branch $(currentBranch)")"
+	git status -s
+	cd "$fwmetadir"
+}
+
+showstatus fwmeta .
+
+for repo in $(getAllRepos); do
+	dir=$(getDirForRepo $repo)
+	if [ -d "$dir" ]; then
+		showstatus $repo $dir
+	fi
+done
