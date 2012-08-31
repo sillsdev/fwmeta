@@ -24,3 +24,70 @@ fullname()
 		echo "$n"
 	fi
 }
+
+platform()
+{
+	case "$OSTYPE" in
+		msys)
+			echo "Windows"
+			;;
+		cygwin)
+			echo "Windows"
+			;;
+		linux-gnu)
+			echo "Linux"
+			;;
+	esac
+}
+
+# gets all repos listed in repodefs.sh
+getAllRepos()
+{
+	local repo dir repoplatform
+	allrepos=()
+	IFS=$'\n'
+	for line in $locations
+	do
+		while IFS=: read -r repo dir repoplatform
+		do
+			allrepos+=("$repo")
+		done <<< $line
+	done
+	echo "${allrepos[@]}"
+}
+
+# gets all repos suitable for the current platform
+getAllReposForPlatform()
+{
+	local repo dir repoplatform
+	allrepos=()
+	IFS=$'\n'
+	for line in $locations
+	do
+		while IFS=: read -r repo dir repoplatform
+		do
+			if [ -z "$repoplatform" ] || [ "$repoplatform" == "$(platform)" ]; then
+				allrepos+=("$repo")
+			fi
+		done <<< $line
+	done
+	echo "${allrepos[@]}"
+}
+
+# gets the path for repo $1
+getDirForRepo()
+{
+	local repo dir platform
+	IFS=$'\n'
+	for line in $locations
+	do
+		while IFS=: read -r repo dir platform
+		do
+			if [ "$repo" == "$1" ]; then
+				echo "$dir"
+				return
+			fi
+		done <<< $line
+	done
+	echo "Repo $1 not found" >&2
+}
