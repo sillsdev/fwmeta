@@ -5,15 +5,7 @@ set -e
 
 GERRIT="gerrit.lsdev.sil.org"
 GERRITPORT=59418
-
-# In Calgary use repos on git directly, otherwise use repos on github
-# REVIEW: it might be better to redirect in the config file (see git-fetch(1)), especially if
-# we use submodules or other files that hardcode the URI.
-#if [ "$(dnsdomainname 2>/dev/null)" == "wycliffe.ca" ]; then
-	REPOURI="git://gerrit.lsdev.sil.org"
-#else
-#	REPOURI="git://github.com/sillsdev"
-#fi
+REPOURI="git://github.com/sillsdev"
 FWMETAREPO=fwmeta
 TOOLSDIR=fwmeta
 
@@ -84,6 +76,11 @@ initrepo()
 	# setup push URL
 	if ! git config --get-all remote.origin.pushurl | grep -q "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"; then
 		git remote set-url --add --push origin "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"
+	fi
+
+	# setup alternate URL
+	if [ -n "$ALTERNATEURL" ]; then
+		git config "url.$ALTERNATEURL.insteadOf" "$REPOURI"
 	fi
 
 	# Remove all fetch statements for origin so that we can add them again
@@ -242,6 +239,11 @@ initrepo()
 }
 
 
+# In Calgary we get the changes directly from gerrit.lsdev.sil.org
+if [ "$(dnsdomainname 2>/dev/null)" == "wycliffe.ca" ]; then
+	ALTERNATEURL="git://gerrit.lsdev.sil.org"
+fi
+
 basedir=$(getfwmetadirBootStrap)
 cd "$basedir"
 if [ "$1" != "--recursive" ]; then
@@ -259,6 +261,11 @@ if [ "$1" != "--recursive" ]; then
 		basedir=$basedir/$FWMETAREPO
 		cd $basedir
 		git remote add origin "$REPOURI/$FWMETAREPO.git"
+
+		# setup alternate URL
+		if [ -n "$ALTERNATEURL" ]; then
+			git config "url.$ALTERNATEURL.insteadOf" "$REPOURI"
+		fi
 
 		git pull origin master
 	fi
