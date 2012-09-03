@@ -230,6 +230,7 @@ if [ "$1" != "--recursive" ]; then
 		# fwmeta repo doesn't exist yet. Clone it.
 		git clone git://gerrit.lsdev.sil.org/fwmeta.git
 		basedir=$basedir/fwmeta
+		cd $basedir
 	fi
 	# recursive call so that we run with the latest version
 	$basedir/fwmeta/initrepo --recursive $*
