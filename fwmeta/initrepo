@@ -14,14 +14,16 @@ GERRITPORT=59418
 #else
 #	REPOURI="git://github.com/sillsdev"
 #fi
+FWMETAREPO=fwmeta
+TOOLSDIR=fwmeta
 
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
 THISALIASVERSION=4
 
-# Get the directory of the fwmeta repo
-# we can't use getfwmetadir from functions.sh because we might not have that file yet
+# Get the directory of the fwmeta repo. We can't do that in functions.sh because we need to
+# know the directory before we can include functions.sh!
 getfwmetadirBootStrap()
 {
 	local dir olddir curdir
@@ -36,7 +38,7 @@ getfwmetadirBootStrap()
 			return
 		fi
 		cd $dir
-		if [ -d fwmeta ] && git config --file .git/config --get fwinit.initialized >/dev/null; then
+		if [ -d $TOOLSDIR ] && git config --file .git/config --get fwinit.initialized >/dev/null; then
 			echo "$dir"
 			return
 		else
@@ -50,6 +52,11 @@ getfwmetadirBootStrap()
 	done
 }
 
+# Initialize git repo $1.
+# Parameters:
+# $1 repo name
+# $2 directory where $repo is located on local disc
+# $3 top level directory that contains $TOOLSDIR subdirectory
 initrepo()
 {
 	repo=$1
@@ -247,20 +254,24 @@ if [ "$1" != "--recursive" ]; then
 		fi
 	else
 		# fwmeta repo doesn't exist yet. Clone it.
-		git clone git://gerrit.lsdev.sil.org/fwmeta.git
-		basedir=$basedir/fwmeta
+		git init $FWMETAREPO
+
+		basedir=$basedir/$FWMETAREPO
 		cd $basedir
+		git remote add origin "$REPOURI/$FWMETAREPO.git"
+
+		git pull origin master
 	fi
 	# recursive call so that we run with the latest version
-	$basedir/fwmeta/initrepo --recursive $*
+	$basedir/$TOOLSDIR/initrepo --recursive $*
 	exit
 fi
 shift
 reset=0
 [ "$1" == "--reset" ] && reset=1
 
-. "$basedir/fwmeta/functions.sh"
-. "$basedir/fwmeta/repodefs.sh"
+. "$basedir/$TOOLSDIR/functions.sh"
+. "$basedir/$TOOLSDIR/repodefs.sh"
 
 # Sanity checks
 if ! git flow version &>/dev/null; then
@@ -327,7 +338,7 @@ if [ -z "$branchlist" ]; then
 	git config fwinit.branchlist "$branchlist"
 fi
 
-initrepo fwmeta .
+initrepo $FWMETAREPO .
 
 for repo in $repolist; do
 	initrepo "$repo" "$(getDirForRepo $repo)" "$basedir"
