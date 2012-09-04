@@ -104,11 +104,17 @@ initrepo()
 
 	# install hook
 	if [ ! -f .git/hooks/commit-msg ]; then
-		echo "Getting commit hook:"
+		echo "Installing hooks:"
+		cp -f "$basedir/fwmeta/hooks/commit-msg" .git/hooks/
+		# make it less likely that user replaces it accidentally
+		chmod -w .git/hooks/commit-msg
+		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
 		if [ -z "$basedir" ]; then
-			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks
+			# This is fwmeta repo. Get hook directly from Gerrit server
+			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks/commit-msg1_add-change-id
 		else
-			cp "$basedir/.git/hooks/commit-msg" .git/hooks/
+			# Other FW repos. Get hook from fwmeta.
+			cp "$basedir/.git/hooks/commit-msg1_add-change-id" .git/hooks/
 		fi
 	fi
 
@@ -224,7 +230,7 @@ if [ "$1" != "--recursive" ]; then
 		# If we are then update the repo, otherwise assume we're in the middle of
 		# developing some changes, so we leave it alone.
 		if git rev-parse --abbrev-ref --symbolic-full-name @{u} &> /dev/null; then
-			git pull --rebase origin
+		git pull --rebase origin
 		fi
 	else
 		# fwmeta repo doesn't exist yet. Clone it.
