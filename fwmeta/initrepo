@@ -118,6 +118,7 @@ initrepo()
 
 	echo
 	echo -e "${_bold}Initializing project $repo${_normal}"
+	[ $DEBUG ] && echo "basedir in initrepo=$basedir"
 
 	cwd=$(pwd)
 
@@ -139,7 +140,7 @@ initrepo()
 		chmod -w .git/hooks/pre-commit
 		chmod -w .git/hooks/commit-msg
 		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
-		if [ -z "$basedir" ]; then
+		if [ ! -f "$basedir/.git/hooks/commit-msg1_add-change-id" ]; then
 			# This is fwmeta repo. Get hook directly from Gerrit server
 			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks/commit-msg1_add-change-id
 		else
@@ -367,7 +368,7 @@ if [ -z "$branchlist" ]; then
 	git config fwinit.branchlist "$branchlist"
 fi
 
-initrepo $FWMETAREPO .
+initrepo $FWMETAREPO . "$basedir"
 
 for repo in $repolist; do
 	initrepo "$repo" "$(getDirForRepo $repo)" "$basedir"
