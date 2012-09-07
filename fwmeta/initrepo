@@ -44,29 +44,19 @@ getfwmetadirBootStrap()
 	done
 }
 
-# Initialize git repo $1.
+# Clone the repo $1
 # Parameters:
 # $1 repo name
 # $2 directory where $repo is located on local disc
-# $3 top level directory that contains $TOOLSDIR subdirectory
-initrepo()
+clonerepo()
 {
+	local repo loc
+
 	repo=$1
 	loc=$2
-	basedir=$3
 
-	echo
-	echo -e "${_bold}Initializing project $repo${_normal}"
-
-	cwd=$(pwd)
-	mkdir -p "$loc"
-	cd "$loc"
-	git init .
-
-	if [ "$reset" == "1" ]; then
-		git config --unset fwinit.initialized
-		git config --unset fwinit.aliasversion
-	fi
+	git init $loc
+	cd $loc
 
 	# Initialize origin
 	if ! git remote | grep -q origin; then
@@ -83,8 +73,13 @@ initrepo()
 		git config "url.$ALTERNATEURL.insteadOf" "$REPOURI"
 	fi
 
+	if [ "$reset" == "1" ]; then
+		git config --unset fwinit.initialized || true
+		git config --unset fwinit.aliasversion || true
+	fi
+
 	# Remove all fetch statements for origin so that we can add them again
-	git config --unset-all remote.origin.fetch
+	git config --unset-all remote.origin.fetch || true
 
 	# update settings for notes
 	git config notes.rewrite.amend true
@@ -106,6 +101,27 @@ initrepo()
 	if ! git branch | grep -q develop; then
 		git checkout -q develop
 	fi
+}
+
+# Initialize git repo $1.
+# Parameters:
+# $1 repo name
+# $2 directory where $repo is located on local disc
+# $3 top level directory that contains $TOOLSDIR subdirectory
+initrepo()
+{
+	local repo loc basedir
+
+	repo=$1
+	loc=$2
+	basedir=$3
+
+	echo
+	echo -e "${_bold}Initializing project $repo${_normal}"
+
+	cwd=$(pwd)
+
+	clonerepo $repo $loc
 
 	# update settings for whitespace checking. If it's necessary to change the behavior for
 	# certain file types we can add a line to .gitattributes, e.g.
@@ -238,42 +254,48 @@ initrepo()
 	cd "$cwd"
 }
 
+if echo "$*" | grep "\--debug" > /dev/null; then
+	DEBUG=1
+fi
+
+[ $DEBUG ] && echo "ARGS=$*"
+
+branchlist="master develop"
 
 # In Calgary we get the changes directly from gerrit.lsdev.sil.org
-if [ "$(dnsdomainname 2>/dev/null)" == "wycliffe.ca" ]; then
+if dnsdomainname 2>/dev/null | grep wycliffe.ca > /dev/null; then
 	ALTERNATEURL="git://gerrit.lsdev.sil.org"
 fi
 
 basedir=$(getfwmetadirBootStrap)
+[ $DEBUG ] && echo "basedir=$basedir"
+[ $DEBUG ] && echo "Alternate URL=$ALTERNATEURL"
 cd "$basedir"
-if [ "$1" != "--recursive" ]; then
+if ! echo "$*" | grep "\--recursive" > /dev/null; then
+	[ $DEBUG ] && echo "Called non-recursive"
 	if [ -d ".git" ] && git remote | grep -q origin ; then
 		# fwmeta repo exists. Let's see if we're on a branch that has a tracking-branch.
 		# If we are then update the repo, otherwise assume we're in the middle of
 		# developing some changes, so we leave it alone.
 		if git rev-parse --abbrev-ref --symbolic-full-name @{u} &> /dev/null; then
+			echo "Updating $FWMETAREPO"
 			git pull --rebase origin
 		fi
 	else
 		# fwmeta repo doesn't exist yet. Clone it.
-		git init $FWMETAREPO
+		echo "Cloning $FWMETAREPO"
+		clonerepo $FWMETAREPO $FWMETAREPO
 
 		basedir=$basedir/$FWMETAREPO
 		cd $basedir
-		git remote add origin "$REPOURI/$FWMETAREPO.git"
-
-		# setup alternate URL
-		if [ -n "$ALTERNATEURL" ]; then
-			git config "url.$ALTERNATEURL.insteadOf" "$REPOURI"
-		fi
-
-		git pull origin master
 	fi
+	echo
 	# recursive call so that we run with the latest version
 	$basedir/$TOOLSDIR/initrepo --recursive $*
 	exit
 fi
 shift
+[ $DEBUG ] && echo "Called recursively"
 reset=0
 [ "$1" == "--reset" ] && reset=1
 
