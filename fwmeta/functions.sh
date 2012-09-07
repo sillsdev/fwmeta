@@ -40,6 +40,35 @@ platform()
 	esac
 }
 
+# Get the directory of the fwmeta repo
+getfwmetadir()
+{
+	local dir olddir curdir
+	curdir=$(pwd)
+	dir=$curdir
+
+	while true; do
+		cd $dir
+		dir=$(git rev-parse --show-toplevel 2> /dev/null)
+		if [ -z $dir ]; then
+			echo "$curdir"
+			return
+		fi
+		cd $dir
+		if [ -d fwmeta ] && git config --file .git/config --get fwinit.initialized >/dev/null; then
+			echo "$dir"
+			return
+		else
+			olddir="$dir"
+			dir=$(dirname "$dir")
+			if [ "$olddir" == "$dir" ]; then
+				echo "$curdir"
+				return
+			fi
+		fi
+	done
+}
+
 # gets all repos listed in repodefs.sh
 getAllRepos()
 {
@@ -91,3 +120,23 @@ getDirForRepo()
 	done
 	echo "Repo $1 not found" >&2
 }
+
+currentBranch()
+{
+	local curbranch
+	curbranch=$(git symbolic-ref -q HEAD)
+	echo ${curbranch#refs/heads/}
+}
+
+currentCommit()
+{
+	local commit
+	commit=$(git symbolic-ref -q HEAD || git name-rev --name-only HEAD 2>/dev/null)
+	echo ${commit#refs/heads/}
+}
+
+# define colors (we can't use $(tput bold) because tput isn't installed on Windows by default)
+if [ -z $NOCOLORS ] ; then
+	_bold="\033[1m"
+	_normal="\033[0m"
+fi

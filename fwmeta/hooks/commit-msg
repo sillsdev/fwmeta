@@ -1,0 +1,7 @@
+#!/bin/sh
+# commit-msg hook wrapper that calls the other hooks we want to be executed :-)
+set -e
+for file in $(dirname $0)/commit-msg[0-9]*
+do
+	$file $*
+done

@@ -5,23 +5,18 @@ set -e
 
 GERRIT="gerrit.lsdev.sil.org"
 GERRITPORT=59418
-
-# In Calgary use repos on git directly, otherwise use repos on github
-# REVIEW: it might be better to redirect in the config file (see git-fetch(1)), especially if
-# we use submodules or other files that hardcode the URI.
-#if [ "$(dnsdomainname 2>/dev/null)" == "wycliffe.ca" ]; then
-	REPOURI="git://gerrit.lsdev.sil.org"
-#else
-#	REPOURI="git://github.com/sillsdev"
-#fi
+REPOURI="git://github.com/sillsdev"
+FWMETAREPO=fwmeta
+TOOLSDIR=fwmeta
 
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=3
+THISALIASVERSION=4
 
-# Get the directory of the fwmeta repo
-getfwmetadir()
+# Get the directory of the fwmeta repo. We can't do that in functions.sh because we need to
+# know the directory before we can include functions.sh!
+getfwmetadirBootStrap()
 {
 	local dir olddir curdir
 	curdir=$(pwd)
@@ -35,7 +30,7 @@ getfwmetadir()
 			return
 		fi
 		cd $dir
-		if [ -d fwmeta ] && git config --file .git/config --get fwinit.initialized >/dev/null; then
+		if [ -d $TOOLSDIR ] && git config --file .git/config --get fwinit.initialized >/dev/null; then
 			echo "$dir"
 			return
 		else
@@ -49,24 +44,19 @@ getfwmetadir()
 	done
 }
 
-initrepo()
+# Clone the repo $1
+# Parameters:
+# $1 repo name
+# $2 directory where $repo is located on local disc
+clonerepo()
 {
+	local repo loc
+
 	repo=$1
 	loc=$2
-	basedir=$3
 
-	echo
-	echo "${_bold}Initializing project $repo${_normal}"
-
-	cwd=$(pwd)
-	mkdir -p "$loc"
-	cd "$loc"
-	git init .
-
-	if [ "$reset" == "1" ]; then
-		git config --unset fwinit.initialized
-		git config --unset fwinit.aliasversion
-	fi
+	git init $loc
+	cd $loc
 
 	# Initialize origin
 	if ! git remote | grep -q origin; then
@@ -78,8 +68,18 @@ initrepo()
 		git remote set-url --add --push origin "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"
 	fi
 
+	# setup alternate URL
+	if [ -n "$ALTERNATEURL" ]; then
+		git config "url.$ALTERNATEURL.insteadOf" "$REPOURI"
+	fi
+
+	if [ "$reset" == "1" ]; then
+		git config --unset fwinit.initialized || true
+		git config --unset fwinit.aliasversion || true
+	fi
+
 	# Remove all fetch statements for origin so that we can add them again
-	git config --unset-all remote.origin.fetch
+	git config --unset-all remote.origin.fetch || true
 
 	# update settings for notes
 	git config notes.rewrite.amend true
@@ -101,14 +101,50 @@ initrepo()
 	if ! git branch | grep -q develop; then
 		git checkout -q develop
 	fi
+}
 
-	# install hook
+# Initialize git repo $1.
+# Parameters:
+# $1 repo name
+# $2 directory where $repo is located on local disc
+# $3 top level directory that contains $TOOLSDIR subdirectory
+initrepo()
+{
+	local repo loc basedir
+
+	repo=$1
+	loc=$2
+	basedir=$3
+
+	echo
+	echo -e "${_bold}Initializing project $repo${_normal}"
+
+	cwd=$(pwd)
+
+	clonerepo $repo $loc
+
+	# update settings for whitespace checking. If it's necessary to change the behavior for
+	# certain file types we can add a line to .gitattributes, e.g.
+	# *.py whitespace=-indent-with-non-tab
+	git config core.whitespace "blank-at-eol,space-before-tab,indent-with-non-tab,blank-at-eof,tabwidth=4"
+	git config apply.ignorewhitespace change
+	git config apply.whitespace fix
+
+	# install hooks
 	if [ ! -f .git/hooks/commit-msg ]; then
-		echo "Getting commit hook:"
+		echo "Installing hooks:"
+		cp -f "$basedir/fwmeta/hooks/pre-commit" .git/hooks/
+		cp -f "$basedir/fwmeta/hooks/commit-msg" .git/hooks/
+		# make it less likely that user replaces it accidentally
+		chmod -w .git/hooks/pre-commit
+		chmod -w .git/hooks/commit-msg
+		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
 		if [ -z "$basedir" ]; then
-			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks
+			# This is fwmeta repo. Get hook directly from Gerrit server
+			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks/commit-msg1_add-change-id
 		else
-			cp "$basedir/.git/hooks/commit-msg" .git/hooks/
+			# Other FW repos. Get hook from fwmeta.
+			cp "$basedir/.git/hooks/commit-msg1_add-change-id" .git/hooks/
 		fi
 	fi
 
@@ -165,6 +201,7 @@ initrepo()
 		git config alias.supfin '!sh -c "SEDREPLACE/supfin.sh \$1" -'
 		git config alias.pullrebase '!sh -c "SEDREPLACE/pullrebase.sh" -'
 		git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push origin && git push origin --tags" -'
+		git config alias.globstat '!sh -c "SEDREPLACE/repostatus \$1" -'
 		# do this last so that we can replace multiple entries at once
 		sed "s/SEDREPLACE/$sedReplace/g" .git/config 2>&1 > .git/config2
 		mv .git/config2 .git/config
@@ -210,38 +247,60 @@ initrepo()
 		git config "guitool.Visual Merge.noconsole" yes
 
 		git config guitool.Rebase.cmd 'git pullrebase'
+		git config "guitool.Global Repo Status.cmd" 'git globstat --no-colors'
+
 		git config fwinit.aliasversion "$THISALIASVERSION"
 	fi
 	cd "$cwd"
 }
 
+if echo "$*" | grep "\--debug" > /dev/null; then
+	DEBUG=1
+fi
 
-basedir=$(getfwmetadir)
+[ $DEBUG ] && echo "ARGS=$*"
+
+branchlist="master develop"
+
+# In Calgary we get the changes directly from gerrit.lsdev.sil.org
+if dnsdomainname 2>/dev/null | grep wycliffe.ca > /dev/null; then
+	ALTERNATEURL="git://gerrit.lsdev.sil.org"
+fi
+
+basedir=$(getfwmetadirBootStrap)
+[ $DEBUG ] && echo "basedir=$basedir"
+[ $DEBUG ] && echo "Alternate URL=$ALTERNATEURL"
 cd "$basedir"
-if [ "$1" != "--recursive" ]; then
+if ! echo "$*" | grep "\--recursive" > /dev/null; then
+	[ $DEBUG ] && echo "Called non-recursive"
 	if [ -d ".git" ] && git remote | grep -q origin ; then
 		# fwmeta repo exists. Let's see if we're on a branch that has a tracking-branch.
 		# If we are then update the repo, otherwise assume we're in the middle of
 		# developing some changes, so we leave it alone.
 		if git rev-parse --abbrev-ref --symbolic-full-name @{u} &> /dev/null; then
+			echo "Updating $FWMETAREPO"
 			git pull --rebase origin
 		fi
 	else
 		# fwmeta repo doesn't exist yet. Clone it.
-		git clone git://gerrit.lsdev.sil.org/fwmeta.git
-		basedir=$basedir/fwmeta
+		echo "Cloning $FWMETAREPO"
+		clonerepo $FWMETAREPO $FWMETAREPO
+
+		basedir=$basedir/$FWMETAREPO
 		cd $basedir
 	fi
+	echo
 	# recursive call so that we run with the latest version
-	$basedir/fwmeta/initrepo --recursive $*
+	$basedir/$TOOLSDIR/initrepo --recursive $*
 	exit
 fi
 shift
+[ $DEBUG ] && echo "Called recursively"
 reset=0
 [ "$1" == "--reset" ] && reset=1
 
-. "$basedir/fwmeta/functions.sh"
-. "$basedir/fwmeta/repodefs.sh"
+. "$basedir/$TOOLSDIR/functions.sh"
+. "$basedir/$TOOLSDIR/repodefs.sh"
 
 # Sanity checks
 if ! git flow version &>/dev/null; then
@@ -308,7 +367,7 @@ if [ -z "$branchlist" ]; then
 	git config fwinit.branchlist "$branchlist"
 fi
 
-initrepo fwmeta .
+initrepo $FWMETAREPO .
 
 for repo in $repolist; do
 	initrepo "$repo" "$(getDirForRepo $repo)" "$basedir"
