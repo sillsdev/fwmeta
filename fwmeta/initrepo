@@ -132,14 +132,8 @@ initrepo()
 	git config apply.whitespace fix
 
 	# install hooks
-	if [ ! -f .git/hooks/commit-msg ]; then
+	if [ ! -f .git/hooks/commit-msg -o ! -f .git/hooks/commit-msg1_add-change-id ]; then
 		echo "Installing hooks:"
-		cp -f "$basedir/fwmeta/hooks/pre-commit" .git/hooks/
-		cp -f "$basedir/fwmeta/hooks/commit-msg" .git/hooks/
-		# make it less likely that user replaces it accidentally
-		chmod -w .git/hooks/pre-commit
-		chmod -w .git/hooks/commit-msg
-		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
 		if [ ! -f "$basedir/.git/hooks/commit-msg1_add-change-id" ]; then
 			# This is fwmeta repo. Get hook directly from Gerrit server
 			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks/commit-msg1_add-change-id
@@ -147,6 +141,12 @@ initrepo()
 			# Other FW repos. Get hook from fwmeta.
 			cp "$basedir/.git/hooks/commit-msg1_add-change-id" .git/hooks/
 		fi
+		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
+		cp -f "$basedir/fwmeta/hooks/pre-commit" .git/hooks/
+		cp -f "$basedir/fwmeta/hooks/commit-msg" .git/hooks/
+		# make it less likely that user replaces it accidentally
+		chmod -w .git/hooks/pre-commit
+		chmod -w .git/hooks/commit-msg
 	fi
 
 	# Initialize git flow
