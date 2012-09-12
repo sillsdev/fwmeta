@@ -318,7 +318,7 @@ mergetool=${mergetool:-p4merge}
 savevalues=false
 
 # Query user for variables
-if [ -z "$username" ]; then
+if [ -z "$username" -o "$reset" = 1 ]; then
 	username="${username:-$(fullname)}"
 	username=$(readdefault "Full name" "$username")
 	savevalues=true
@@ -327,12 +327,12 @@ fi
 # Note: we can't use ${username,,} to convert to lowercase because that's a bash 4.0 feature
 # and so doesn't work on Windows
 defname="$(echo ${username// /_} | tr '[A-Z]' '[a-z]')"
-if [ -z "$useremail" ]; then
+if [ -z "$useremail" -o "$reset" = 1 ]; then
 	useremail="${useremail:-$defname@sil.org}"
 	useremail=$(readdefault "Email address" "$useremail")
 	savevalues=true
 fi
-if [ -z "$gerritusername" ]; then
+if [ -z "$gerritusername" -o "$reset" = 1 ]; then
 	gerritusername="${gerritusername:-$defname}"
 	gerritusername=$(readdefault "Gerrit username" "${gerritusername}")
 	savevalues=true
@@ -345,7 +345,7 @@ if "$savevalues"; then
 	git config --global fwinit.gerrituser "$gerritusername"
 fi
 
-if [ -z "$mergetool" ]; then
+if [ -z "$mergetool" -o "$reset" = 1 ]; then
 	mergetool=$(readdefault "Merge tool [p4merge, kdiff3]" "$mergetool")
 fi
 
