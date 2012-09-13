@@ -356,13 +356,24 @@ fi
 repolist=$(git config --get fwinit.repolist) || true
 [ "$reset" = 1 ] && repolist=""
 if [ -z "$repolist" ]; then
-	echo "Available repos: $(getAllReposForPlatform)"
-	defaultlist="FieldWorks FwSampleProjects"
-	if [ "$(platform)" = "Linux" ]; then
-		defaultlist+=" mono mono-basic gtk-sharp libgdiplus"
-	fi
+	while [ -z "$repolist" ]
+	do
+		echo "Available repos: $(getAllReposForPlatform)"
+		defaultlist="FieldWorks FwSampleProjects"
+		if [ "$(platform)" = "Linux" ]; then
+			defaultlist+=" mono mono-basic gtk-sharp libgdiplus"
+		fi
+		repolist=$(readdefault "Repos to clone" "$defaultlist")
+		for repo in $repolist; do
+			if ! echo "$(getAllReposForPlatform)" | grep -E "(^| )$repo( |$)" >& /dev/null; then
+				echo
+				printf "${_bold}Can't find \"%q\". Please try again.${_normal}\n" $repo
+				repolist=""
+				break
+			fi
+		done
+	done;
 
-	repolist=$(readdefault "Repos to clone" "$defaultlist")
 	git config fwinit.repolist "$repolist"
 fi
 branchlist=$(git config --get fwinit.branchlist) || true
