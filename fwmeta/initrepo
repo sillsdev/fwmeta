@@ -154,19 +154,18 @@ initrepo()
 		git flow init -d
 	fi
 
-	if [ "$(git config --get fwinit.aliasversion)" != "$THISALIASVERSION" ]; then
+	if [ "$(git config --get fwinit.aliasversion)" != "$THISALIASVERSION"  -o "$reset" = "1" ]; then
 		# adding some alias
 		echo "Adding alias:"
-		if ! git config --get fwinit.initialized &>/dev/null; then
+		if ! git config --get fwinit.initialized &>/dev/null || [ "$reset" = "1" ]; then
+			giteditor="$(git config --get fwinit.editor)"
 			if [ "$(uname)" = "Linux" ]; then
-				# there's some conflict here. When we use git from the command line
-				# we don't want gedit here, but when we use git-gui we can't use vi.
-				# So we set it to gedit for now; user might have to adjust later.
-				git config core.editor "gedit -w"
+				giteditor="${giteditor:-gedit -w}"
 				git config gui.editor "gedit -w"
 			else
-				git config core.editor "$(dirname $0)/winedit.sh"
+				giteditor="${giteditor:-$(dirname $0)/winedit.sh"
 			fi
+			git config core.editor $giteditor
 			git config merge.tool "$mergetool"
 			git config diff.guitool "$mergetool"
 			git config fwinit.initialized 1
