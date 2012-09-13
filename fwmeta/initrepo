@@ -68,11 +68,6 @@ clonerepo()
 		git remote set-url --add --push origin "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"
 	fi
 
-	# setup alternate URL
-	if [ -n "$ALTERNATEURL" ]; then
-		git config "url.$ALTERNATEURL.insteadOf" "$REPOURI"
-	fi
-
 	if [ "$reset" = "1" ]; then
 		git config --unset fwinit.initialized || true
 		git config --unset fwinit.aliasversion || true
@@ -267,14 +262,8 @@ fi
 
 branchlist="master develop"
 
-# In Calgary we get the changes directly from gerrit.lsdev.sil.org
-if dnsdomainname 2>/dev/null | grep wycliffe.ca > /dev/null; then
-	ALTERNATEURL="git://gerrit.lsdev.sil.org"
-fi
-
 basedir=$(getfwmetadirBootStrap)
 [ $DEBUG ] && echo "basedir=$basedir"
-[ $DEBUG ] && echo "Alternate URL=$ALTERNATEURL"
 cd "$basedir"
 if ! echo "$*" | grep "\--recursive" > /dev/null; then
 	[ $DEBUG ] && echo "Called non-recursive"
