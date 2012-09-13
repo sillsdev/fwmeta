@@ -78,8 +78,10 @@ clonerepo()
 		git config --unset fwinit.aliasversion || true
 	fi
 
-	# Remove all fetch statements for origin so that we can add them again
+	# Remove all fetch and push statements for origin so that we can add
+	# them again
 	git config --unset-all remote.origin.fetch || true
+	git config --unset-all remote.origin.push  || true
 
 	# update settings for notes
 	git config notes.rewrite.amend true
@@ -92,6 +94,9 @@ clonerepo()
 
 	# fetch branches and setup tracking branch
 	git remote set-branches --add origin $branchlist
+	for branch in $branchlist; do
+		git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
+	done
 	git fetch origin
 
 	# we need the master and develop branches so that we can successfully initialize git-flow
