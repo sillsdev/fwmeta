@@ -3,23 +3,26 @@
 
 NOCOLORS=$1
 
+FWMETAREPO=fwmeta
+TOOLSDIR=fwmeta
+
 # need to unset GIT_WORK_TREE and GIT_DIR when running from git gui
 unset GIT_WORK_TREE
 unset GIT_DIR
 
-olddir=$(pwd)
+olddir="$(pwd)"
 cd "$(dirname "$0")"
 basedir=$(git rev-parse --show-toplevel)
-cd $olddir
+cd "$olddir"
 
-. "$basedir/fwmeta/repodefs.sh"
-. "$basedir/fwmeta/functions.sh"
+. "$basedir/$TOOLSDIR/functions.sh"
+. "$basedir/$TOOLSDIR/repodefs.sh"
 
 if [ ! -z $NOCOLORS ] ; then
 	_nl="\n"
 fi
 
-fwmetadir=$(getfwmetadir)
+fwmetadir="$(getfwmetadir)"
 
 # show the status for repo $1 in directory $2
 showstatus()
@@ -30,11 +33,11 @@ showstatus()
 	cd "$fwmetadir"
 }
 
-showstatus fwmeta .
+showstatus "$TOOLSDIR" "."
 
 for repo in $(getAllRepos); do
-	dir=$(getDirForRepo $repo)
+	dir="$(getDirForRepo $repo)"
 	if [ -d "$dir" ]; then
-		showstatus $repo $dir
+		showstatus "$repo" "$dir"
 	fi
 done
