@@ -18,7 +18,7 @@ fullname()
 	if [ -r /etc/passwd ]; then
 		while IFS=: read -r f1 f2 f3 f4 f5 f6 f7
 		do
-			[ "$f1" == "$n" ] && echo "${f5%%,*}"
+			[ "$f1" = "$n" ] && echo "${f5%%,*}"
 		done </etc/passwd
 	else
 		echo "$n"
@@ -61,7 +61,7 @@ getfwmetadir()
 		else
 			olddir="$dir"
 			dir=$(dirname "$dir")
-			if [ "$olddir" == "$dir" ]; then
+			if [ "$olddir" = "$dir" ]; then
 				echo "$curdir"
 				return
 			fi
@@ -112,8 +112,26 @@ getDirForRepo()
 	do
 		while IFS=: read -r repo dir platform
 		do
-			if [ "$repo" == "$1" ]; then
+			if [ "$repo" = "$1" ]; then
 				echo "$dir"
+				return
+			fi
+		done <<< $line
+	done
+	echo "Repo $1 not found" >&2
+}
+
+# gets the host for repo $1
+getHostForRepo()
+{
+	local repo dir platform host
+	IFS=$'\n'
+	for line in $locations
+	do
+		while IFS='#' read -r repo dir platform host
+		do
+			if [ "$repo" = "$1" ]; then
+				echo "$host"
 				return
 			fi
 		done <<< $line
