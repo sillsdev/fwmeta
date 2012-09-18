@@ -5,7 +5,6 @@ set -e
 
 GERRIT="gerrit.lsdev.sil.org"
 GERRITPORT=59418
-REPOURI="git://github.com/sillsdev"
 FWMETAREPO=fwmeta
 TOOLSDIR=fwmeta
 
@@ -53,10 +52,10 @@ clonerepo()
 	local repo loc
 
 	repo=$1
-	loc=$2
+	loc="$2"
 
-	git init $loc
-	cd $loc
+	git init "$loc"
+	cd "$loc"
 
 	# Initialize origin
 	if [ "$reset" = "1" ] || ! git remote | grep -q origin; then
@@ -114,8 +113,8 @@ initrepo()
 	local repo loc basedir
 
 	repo=$1
-	loc=$2
-	basedir=$3
+	loc="$2"
+	basedir="$3"
 
 	echo
 	echo -e "${_bold}Initializing project $repo${_normal}"
@@ -123,7 +122,7 @@ initrepo()
 
 	cwd=$(pwd)
 
-	clonerepo $repo $loc
+	clonerepo $repo "$loc"
 
 	# update settings for whitespace checking. If it's necessary to change the behavior for
 	# certain file types we can add a line to .gitattributes, e.g.
@@ -193,8 +192,7 @@ initrepo()
 			git config --remove-section "guitool. Visual Diff" 2> /dev/null || true
 		fi
 
-		sedReplace="$(dirname "$0")"
-		sedReplace=${sedReplace//\//\\\/} # replace all / with \/
+		sedReplace=${basedir//\//\\\/} # replace all / with \/
 		git config alias.featfin '!sh -c "SEDREPLACE/featfin.sh \$1" -'
 		git config alias.review '!sh -c "SEDREPLACE/review.sh \$1 \$2" -'
 		git config alias.release '!sh -c "SEDREPLACE/relfin.sh \$1" -'
@@ -263,7 +261,7 @@ fi
 
 branchlist="master develop"
 
-basedir=$(getfwmetadirBootStrap)
+basedir="$(getfwmetadirBootStrap)"
 [ $DEBUG ] && echo "basedir=$basedir"
 cd "$basedir"
 if ! echo "$*" | grep "\--recursive" > /dev/null; then
@@ -281,12 +279,12 @@ if ! echo "$*" | grep "\--recursive" > /dev/null; then
 		echo "Cloning $FWMETAREPO"
 		clonerepo $FWMETAREPO $FWMETAREPO
 
-		basedir=$basedir/$FWMETAREPO
-		cd $basedir
+		basedir="$basedir/$FWMETAREPO"
+		cd "$basedir"
 	fi
 	echo
 	# recursive call so that we run with the latest version
-	$basedir/$TOOLSDIR/initrepo --recursive $*
+	"$basedir/$TOOLSDIR/initrepo" --recursive $*
 	exit
 fi
 shift

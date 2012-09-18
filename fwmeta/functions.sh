@@ -72,14 +72,16 @@ getfwmetadir()
 # gets all repos listed in repodefs.sh
 getAllRepos()
 {
-	local repo dir repoplatform
+	local repo dir repoplatform host
 	allrepos=()
 	IFS=$'\n'
 	for line in $locations
 	do
-		while IFS=: read -r repo dir repoplatform
+		while IFS='#' read -r repo dir repoplatform host
 		do
-			allrepos+=("$repo")
+			if [ "$repo" != "$FWMETAREPO" ]; then
+				allrepos+=("$repo")
+			fi
 		done <<< $line
 	done
 	echo "${allrepos[@]}"
@@ -88,15 +90,17 @@ getAllRepos()
 # gets all repos suitable for the current platform
 getAllReposForPlatform()
 {
-	local repo dir repoplatform
+	local repo dir repoplatform host
 	allrepos=()
 	IFS=$'\n'
 	for line in $locations
 	do
-		while IFS=: read -r repo dir repoplatform
+		while IFS='#' read -r repo dir repoplatform host
 		do
-			if [ -z "$repoplatform" ] || [ "$repoplatform" == "$(platform)" ]; then
-				allrepos+=("$repo")
+			if [ "$repo" != "$FWMETAREPO" ]; then
+				if [ -z "$repoplatform" ] || [ "$repoplatform" = "$(platform)" ]; then
+					allrepos+=("$repo")
+				fi
 			fi
 		done <<< $line
 	done
@@ -106,11 +110,11 @@ getAllReposForPlatform()
 # gets the path for repo $1
 getDirForRepo()
 {
-	local repo dir platform
+	local repo dir platform host
 	IFS=$'\n'
 	for line in $locations
 	do
-		while IFS=: read -r repo dir platform
+		while IFS='#' read -r repo dir platform host
 		do
 			if [ "$repo" = "$1" ]; then
 				echo "$dir"
@@ -143,6 +147,7 @@ currentBranch()
 {
 	local curbranch
 	curbranch=$(git symbolic-ref -q HEAD)
+	curbranch=${curbranch:-"(no branch)"}
 	echo ${curbranch#refs/heads/}
 }
 
