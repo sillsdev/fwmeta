@@ -158,7 +158,7 @@ initrepo()
 		# adding some alias
 		echo "Adding alias:"
 		if ! git config --get fwinit.initialized &>/dev/null || [ "$reset" = "1" ]; then
-			giteditor="$(git config --get fwinit.editor)"
+			giteditor="$(git config --get fwinit.editor || true)"
 			if [ "$(uname)" = "Linux" ]; then
 				giteditor="${giteditor:-gedit -w}"
 				git config gui.editor "gedit -w"
