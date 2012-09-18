@@ -2,10 +2,12 @@
 # Finish a release
 # If no release name is given as parameter the name of the current release branch will be used.
 
-developConfig=$(git config --get gitflow.branch.develop)
-masterConfig=$(git config --get gitflow.branch.master)
-releaseConfig=$(git config --get gitflow.prefix.release)
-originConfig=$(git config --get gitflow.origin)
+set -e
+
+developConfig=$(git config --get gitflow.branch.develop || true)
+masterConfig=$(git config --get gitflow.branch.master || true)
+releaseConfig=$(git config --get gitflow.prefix.release || true)
+originConfig=$(git config --get gitflow.origin || true)
 develop=${developConfig:-develop}
 master=${masterConfig:-master}
 release=${releaseConfig:-release/}
