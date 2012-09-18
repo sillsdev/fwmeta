@@ -163,7 +163,7 @@ initrepo()
 				giteditor="${giteditor:-gedit -w}"
 				git config gui.editor "gedit -w"
 			else
-				giteditor="${giteditor:-$(dirname $0)/winedit.sh"
+				giteditor="${giteditor:-$(dirname $0)/winedit.sh}"
 			fi
 			git config core.editor $giteditor
 			git config merge.tool "$mergetool"
