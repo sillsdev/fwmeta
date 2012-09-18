@@ -12,7 +12,7 @@ TOOLSDIR=fwmeta
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=4
+THISALIASVERSION=5
 
 # Get the directory of the fwmeta repo. We can't do that in functions.sh because we need to
 # know the directory before we can include functions.sh!
@@ -163,7 +163,7 @@ initrepo()
 				giteditor="${giteditor:-gedit -w}"
 				git config gui.editor "gedit -w"
 			else
-				giteditor="${giteditor:-$(dirname $0)/winedit.sh"
+				giteditor="${giteditor:-$(dirname $0)/winedit.sh}"
 			fi
 			git config core.editor $giteditor
 			git config merge.tool "$mergetool"
@@ -209,7 +209,7 @@ initrepo()
 		git config guitool.0_Feature/0_Start.cmd 'git flow feature start $ARGS'
 		git config guitool.0_Feature/0_Start.argprompt "Feature name (JIRA number)"
 		git config "guitool.0_Feature/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/develop/$CUR_BRANCH'
-		git config guitool.0_Feature/2_Finish.cmd 'git featfin ${CUR_BRANCH#*/}'
+		git config guitool.0_Feature/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git featfin ${CUR_BRANCH#*/}'
 		git config guitool.0_Feature/Publish.cmd 'git flow feature publish ${CUR_BRANCH#*/}'
 		git config guitool.0_Feature/Track.cmd 'git flow feature track $ARGS'
 		git config guitool.0_Feature/Track.argprompt "Name of the feature"
@@ -217,7 +217,7 @@ initrepo()
 		git config guitool.1_Release/0_Start.cmd 'git flow release start $ARGS'
 		git config guitool.1_Release/0_Start.argprompt "Name of the release"
 		git config "guitool.1_Release/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/$CUR_BRANCH'
-		git config guitool.1_Release/2_Finish.cmd 'git release ${CUR_BRANCH#*/}'
+		git config guitool.1_Release/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git release ${CUR_BRANCH#*/}'
 		git config guitool.1_Release/Publish.cmd 'git flow release publish ${CUR_BRANCH#*/}'
 		git config guitool.1_Release/Track.cmd 'git flow release track $ARGS'
 		git config guitool.1_Release/Track.argprompt "Name of the release"
@@ -225,25 +225,25 @@ initrepo()
 		git config guitool.2_Hotfix/0_Start.cmd 'git flow hotfix start $ARGS'
 		git config guitool.2_Hotfix/0_Start.argprompt "Name of the fixed version"
 		git config "guitool.2_Hotfix/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/master/$CUR_BRANCH'
-		git config guitool.2_Hotfix/2_Finish.cmd 'git hotfin ${CUR_BRANCH#*/}'
+		git config guitool.2_Hotfix/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git hotfin ${CUR_BRANCH#*/}'
 
 		git config guitool.3_Support/0_Start.cmd 'git flow support start $ARGS'
 		git config guitool.3_Support/0_Start.argprompt "Name of the support branch and tag it is based on (e.g. '1.0 1.0')"
 		git config "guitool.3_Support/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/$CUR_BRANCH'
-		git config guitool.3_Support/2_Finish.cmd 'git supfin $ARGS'
+		git config guitool.3_Support/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git supfin $ARGS'
 		git config guitool.3_Support/2_Finish.argprompt "Name of the new version"
 
 		git config "guitool.Advanced/Bypass Code Review.cmd" 'git push origin $CUR_BRANCH'
-		git config "guitool.Interactive Rebase.cmd" 'git rebase -i $REVISION'
+		git config "guitool.Interactive Rebase.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git rebase -i $REVISION'
 		git config "guitool.Interactive Rebase.revprompt" yes
 		git config "guitool.Interactive Rebase (Continue).cmd" 'git rebase --continue'
 		git config "guitool.Interactive Rebase (Abort).cmd" 'git rebase --abort'
 		git config "guitool.Visual Diff.cmd" 'git difftool -y $FILENAME'
 		git config "guitool.Visual Diff.needsfile" yes
 		git config "guitool.Visual Diff.noconsole" yes
-		git config "guitool.Visual Merge.cmd" 'git mergetool -y'
+		git config "guitool.Visual Merge.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git mergetool -y'
 		git config "guitool.Visual Merge.noconsole" yes
-		git config "guitool.Visual Merge and Push.cmd" 'git mergepush'
+		git config "guitool.Visual Merge and Push.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git mergepush'
 		git config "guitool.Visual Merge.noconsole" yes
 
 		git config guitool.Rebase.cmd 'git pullrebase'
