@@ -36,7 +36,7 @@ getfwmetadirBootStrap()
 		else
 			olddir="$dir"
 			dir=$(dirname "$dir")
-			if [ "$olddir" == "$dir" ]; then
+			if [ "$olddir" = "$dir" ]; then
 				echo "$curdir"
 				return
 			fi
@@ -68,18 +68,15 @@ clonerepo()
 		git remote set-url --add --push origin "ssh://$gerritusername@$GERRIT:$GERRITPORT/$repo.git"
 	fi
 
-	# setup alternate URL
-	if [ -n "$ALTERNATEURL" ]; then
-		git config "url.$ALTERNATEURL.insteadOf" "$REPOURI"
-	fi
-
-	if [ "$reset" == "1" ]; then
+	if [ "$reset" = "1" ]; then
 		git config --unset fwinit.initialized || true
 		git config --unset fwinit.aliasversion || true
 	fi
 
-	# Remove all fetch statements for origin so that we can add them again
+	# Remove all fetch and push statements for origin so that we can add
+	# them again
 	git config --unset-all remote.origin.fetch || true
+	git config --unset-all remote.origin.push  || true
 
 	# update settings for notes
 	git config notes.rewrite.amend true
@@ -92,6 +89,9 @@ clonerepo()
 
 	# fetch branches and setup tracking branch
 	git remote set-branches --add origin $branchlist
+	for branch in $branchlist; do
+		git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
+	done
 	git fetch origin
 
 	# we need the master and develop branches so that we can successfully initialize git-flow
@@ -132,14 +132,8 @@ initrepo()
 	git config apply.whitespace fix
 
 	# install hooks
-	if [ ! -f .git/hooks/commit-msg ]; then
+	if [ ! -f .git/hooks/commit-msg -o ! -f .git/hooks/commit-msg1_add-change-id ]; then
 		echo "Installing hooks:"
-		cp -f "$basedir/fwmeta/hooks/pre-commit" .git/hooks/
-		cp -f "$basedir/fwmeta/hooks/commit-msg" .git/hooks/
-		# make it less likely that user replaces it accidentally
-		chmod -w .git/hooks/pre-commit
-		chmod -w .git/hooks/commit-msg
-		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
 		if [ ! -f "$basedir/.git/hooks/commit-msg1_add-change-id" ]; then
 			# This is fwmeta repo. Get hook directly from Gerrit server
 			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks/commit-msg1_add-change-id
@@ -147,6 +141,12 @@ initrepo()
 			# Other FW repos. Get hook from fwmeta.
 			cp "$basedir/.git/hooks/commit-msg1_add-change-id" .git/hooks/
 		fi
+		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
+		cp -f "$basedir/fwmeta/hooks/pre-commit" .git/hooks/
+		cp -f "$basedir/fwmeta/hooks/commit-msg" .git/hooks/
+		# make it less likely that user replaces it accidentally
+		chmod -w .git/hooks/pre-commit
+		chmod -w .git/hooks/commit-msg
 	fi
 
 	# Initialize git flow
@@ -154,19 +154,18 @@ initrepo()
 		git flow init -d
 	fi
 
-	if [ "$(git config --get fwinit.aliasversion)" != "$THISALIASVERSION" ]; then
+	if [ "$(git config --get fwinit.aliasversion)" != "$THISALIASVERSION"  -o "$reset" = "1" ]; then
 		# adding some alias
 		echo "Adding alias:"
-		if ! git config --get fwinit.initialized &>/dev/null; then
-			if [ "$(uname)" == "Linux" ]; then
-				# there's some conflict here. When we use git from the command line
-				# we don't want gedit here, but when we use git-gui we can't use vi.
-				# So we set it to gedit for now; user might have to adjust later.
-				git config core.editor "gedit -w"
+		if ! git config --get fwinit.initialized &>/dev/null || [ "$reset" = "1" ]; then
+			giteditor="$(git config --get fwinit.editor)"
+			if [ "$(uname)" = "Linux" ]; then
+				giteditor="${giteditor:-gedit -w}"
 				git config gui.editor "gedit -w"
 			else
-				git config core.editor "$(dirname $0)/winedit.sh"
+				giteditor="${giteditor:-$(dirname $0)/winedit.sh"
 			fi
+			git config core.editor $giteditor
 			git config merge.tool "$mergetool"
 			git config diff.guitool "$mergetool"
 			git config fwinit.initialized 1
@@ -263,14 +262,8 @@ fi
 
 branchlist="master develop"
 
-# In Calgary we get the changes directly from gerrit.lsdev.sil.org
-if dnsdomainname 2>/dev/null | grep wycliffe.ca > /dev/null; then
-	ALTERNATEURL="git://gerrit.lsdev.sil.org"
-fi
-
 basedir=$(getfwmetadirBootStrap)
 [ $DEBUG ] && echo "basedir=$basedir"
-[ $DEBUG ] && echo "Alternate URL=$ALTERNATEURL"
 cd "$basedir"
 if ! echo "$*" | grep "\--recursive" > /dev/null; then
 	[ $DEBUG ] && echo "Called non-recursive"
@@ -298,7 +291,7 @@ fi
 shift
 [ $DEBUG ] && echo "Called recursively"
 reset=0
-[ "$1" == "--reset" ] && reset=1
+[ "$1" = "--reset" ] && reset=1
 
 . "$basedir/$TOOLSDIR/functions.sh"
 . "$basedir/$TOOLSDIR/repodefs.sh"
@@ -318,7 +311,7 @@ mergetool=${mergetool:-p4merge}
 savevalues=false
 
 # Query user for variables
-if [ -z "$username" ]; then
+if [ -z "$username" -o "$reset" = 1 ]; then
 	username="${username:-$(fullname)}"
 	username=$(readdefault "Full name" "$username")
 	savevalues=true
@@ -327,12 +320,12 @@ fi
 # Note: we can't use ${username,,} to convert to lowercase because that's a bash 4.0 feature
 # and so doesn't work on Windows
 defname="$(echo ${username// /_} | tr '[A-Z]' '[a-z]')"
-if [ -z "$useremail" ]; then
+if [ -z "$useremail" -o "$reset" = 1 ]; then
 	useremail="${useremail:-$defname@sil.org}"
 	useremail=$(readdefault "Email address" "$useremail")
 	savevalues=true
 fi
-if [ -z "$gerritusername" ]; then
+if [ -z "$gerritusername" -o "$reset" = 1 ]; then
 	gerritusername="${gerritusername:-$defname}"
 	gerritusername=$(readdefault "Gerrit username" "${gerritusername}")
 	savevalues=true
@@ -345,24 +338,35 @@ if "$savevalues"; then
 	git config --global fwinit.gerrituser "$gerritusername"
 fi
 
-if [ -z "$mergetool" ]; then
+if [ -z "$mergetool" -o "$reset" = 1 ]; then
 	mergetool=$(readdefault "Merge tool [p4merge, kdiff3]" "$mergetool")
 fi
 
 repolist=$(git config --get fwinit.repolist) || true
-[ "$reset" == 1 ] && repolist=""
+[ "$reset" = 1 ] && repolist=""
 if [ -z "$repolist" ]; then
-	echo "Available repos: $(getAllReposForPlatform)"
-	defaultlist="FieldWorks FwSampleProjects"
-	if [ "$(platform)" == "Linux" ]; then
-		defaultlist+=" mono mono-basic gtk-sharp libgdiplus"
-	fi
+	while [ -z "$repolist" ]
+	do
+		echo "Available repos: $(getAllReposForPlatform)"
+		defaultlist="FieldWorks FwSampleProjects"
+		if [ "$(platform)" = "Linux" ]; then
+			defaultlist+=" mono mono-basic gtk-sharp libgdiplus"
+		fi
+		repolist=$(readdefault "Repos to clone" "$defaultlist")
+		for repo in $repolist; do
+			if ! echo "$(getAllReposForPlatform)" | grep -E "(^| )$repo( |$)" >& /dev/null; then
+				echo
+				printf "${_bold}Can't find \"%q\". Please try again.${_normal}\n" $repo
+				repolist=""
+				break
+			fi
+		done
+	done;
 
-	repolist=$(readdefault "Repos to clone" "$defaultlist")
 	git config fwinit.repolist "$repolist"
 fi
 branchlist=$(git config --get fwinit.branchlist) || true
-[ "$reset" == 1 ] && branchlist=""
+[ "$reset" = 1 ] && branchlist=""
 if [ -z "$branchlist" ]; then
 	branchlist=$(readdefault "Branches to fetch" "master develop")
 	git config fwinit.branchlist "$branchlist"

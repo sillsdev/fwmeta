@@ -20,10 +20,9 @@ fi
 
 feat=${1:-$branch}
 
-git checkout $develop
 git fetch $origin
-# TODO: we want to force a merge commit if the feature branch consists of more then one commits.
-# This means we have to merge first before we rebase
+git checkout $feature/$feat
+git rebase $origin/$develop
+git checkout $develop
+git branch -d $feature/$feat
 git pull --rebase $origin $develop
-git flow feature finish $feat
-git push $origin HEAD:refs/heads/$develop
