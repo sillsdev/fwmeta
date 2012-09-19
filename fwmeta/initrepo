@@ -192,7 +192,8 @@ initrepo()
 			git config --remove-section "guitool. Visual Diff" 2> /dev/null || true
 		fi
 
-		sedReplace=${basedir//\//\\\/} # replace all / with \/
+		sedReplace="$basedir/$TOOLSDIR"
+		sedReplace=${sedReplace//\//\\\/} # replace all / with \/
 		git config alias.featfin '!sh -c "SEDREPLACE/featfin.sh \$1" -'
 		git config alias.review '!sh -c "SEDREPLACE/review.sh \$1 \$2" -'
 		git config alias.release '!sh -c "SEDREPLACE/relfin.sh \$1" -'
