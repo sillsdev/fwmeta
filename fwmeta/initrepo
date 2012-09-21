@@ -11,7 +11,7 @@ TOOLSDIR=fwmeta
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=5
+THISALIASVERSION=6
 
 # Get the directory of the fwmeta repo. We can't do that in functions.sh because we need to
 # know the directory before we can include functions.sh!
@@ -238,7 +238,7 @@ initrepo()
 		git config "guitool.Interactive Rebase.revprompt" yes
 		git config "guitool.Interactive Rebase (Continue).cmd" 'git rebase --continue'
 		git config "guitool.Interactive Rebase (Abort).cmd" 'git rebase --abort'
-		git config "guitool.Visual Diff.cmd" 'git difftool -y $FILENAME'
+		git config "guitool.Visual Diff.cmd" 'git difftool -y HEAD $FILENAME'
 		git config "guitool.Visual Diff.needsfile" yes
 		git config "guitool.Visual Diff.noconsole" yes
 		git config "guitool.Visual Merge.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git mergetool -y'
