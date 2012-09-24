@@ -159,13 +159,15 @@ initrepo()
 		echo "Adding alias:"
 		if ! git config --get fwinit.initialized &>/dev/null || [ "$reset" = "1" ]; then
 			giteditor="$(git config --get fwinit.editor || true)"
+			gitguieditor="$(git config --get fwinit.guieditor || true)"
 			if [ "$(uname)" = "Linux" ]; then
-				giteditor="${giteditor:-gedit -w}"
-				git config gui.editor "gedit -w"
+				gitguieditor="${gitguieditor:-gedit -w}"
 			else
-				giteditor="${giteditor:-$(dirname $0)/winedit.sh}"
+				gitguieditor="${gitguieditor:-$(dirname $0)/winedit.sh}"
 			fi
-			git config core.editor $giteditor
+			giteditor="${giteditor:-$gitguieditor}"
+			git config core.editor "$giteditor"
+			git config gui.editor "$gitguieditor"
 			git config merge.tool "$mergetool"
 			git config diff.guitool "$mergetool"
 			git config fwinit.initialized 1
