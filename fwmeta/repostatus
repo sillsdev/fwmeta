@@ -29,6 +29,7 @@ showstatus()
 {
 	cd "$fwmetadir/$2"
 	echo -e "$(printf "${_nl}${_bold}%-47s %s${_normal}" "project $1/" "branch $(currentBranch)")"
+	echo "Location: $fwmetadir/$2"
 	git status -s
 	cd "$fwmetadir"
 }
@@ -37,7 +38,7 @@ showstatus "$TOOLSDIR" "."
 
 for repo in $(getAllRepos); do
 	dir="$(getDirForRepo $repo)"
-	if [ -d "$dir" ]; then
+	if [ -d "$dir/.git" ]; then
 		showstatus "$repo" "$dir"
 	fi
 done
