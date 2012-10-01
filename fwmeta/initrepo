@@ -262,12 +262,13 @@ fi
 
 [ $DEBUG ] && echo "ARGS=$*"
 
-branchlist="master develop"
+defaultbranches="master develop"
 
 basedir="$(getfwmetadirBootStrap)"
 [ $DEBUG ] && echo "basedir=$basedir"
 cd "$basedir"
 if ! echo "$*" | grep "\--recursive" > /dev/null; then
+	branchlist="$defaultbranches"
 	[ $DEBUG ] && echo "Called non-recursive"
 	if [ -d ".git" ] && git remote | grep -q origin ; then
 		# fwmeta repo exists. Let's see if we're on a branch that has a tracking-branch.
@@ -370,7 +371,7 @@ fi
 branchlist=$(git config --get fwinit.branchlist) || true
 [ "$reset" = 1 ] && branchlist=""
 if [ -z "$branchlist" ]; then
-	branchlist=$(readdefault "Branches to fetch" "master develop")
+	branchlist=$(readdefault "Branches to fetch" "$defaultbranches")
 	git config fwinit.branchlist "$branchlist"
 fi
 
