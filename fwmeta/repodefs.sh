@@ -17,6 +17,7 @@ FwDocumentation#fw/Doc##git://github.com/sillsdev
 FwHelps#fw/DistFiles/Helps##git://github.com/sillsdev
 FwDebian#fw/debian#Linux#git://github.com/sillsdev
 FwInstaller#fw/Installer#Windows#git://github.com/sillsdev
+FwLocalizations#fw/Localizations##git://github.com/sillsdev
 FwSupportTools#fw/SupportTools##git://github.com/sillsdev
 WorldPad#WorldPad##git://gerrit.lsdev.sil.org
 mono#mono/mono#Linux#git://github.com/sillsdev
