@@ -90,7 +90,10 @@ clonerepo()
 	# fetch branches and setup tracking branch
 	git remote set-branches --add origin $branchlist
 	for branch in $branchlist; do
-		git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
+		# only add existing branches
+		if [ $(git ls-remote origin refs/heads/$branch | wc -l) -gt 0 ]; then
+			git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
+		fi
 	done
 	git fetch origin
 
@@ -262,7 +265,7 @@ fi
 
 [ $DEBUG ] && echo "ARGS=$*"
 
-defaultbranches="master develop"
+defaultbranches="master develop release/7.2.7"
 
 basedir="$(getfwmetadirBootStrap)"
 [ $DEBUG ] && echo "basedir=$basedir"
