@@ -19,7 +19,7 @@ FwDebian#fw/debian#Linux#git://github.com/sillsdev
 FwInstaller#fw/Installer#Windows#git://github.com/sillsdev
 FwLocalizations#fw/Localizations##git://github.com/sillsdev
 FwSupportTools#FwSupportTools##git://github.com/sillsdev
-WorldPad#WorldPad##git://gerrit.lsdev.sil.org
+WorldPad#WorldPad##git://github.com/sillsdev
 mono#mono/mono#Linux#git://github.com/sillsdev
 mono-basic#mono/mono-basic#Linux#git://github.com/sillsdev
 gtk-sharp#mono/gtk-sharp#Linux#git://github.com/sillsdev
