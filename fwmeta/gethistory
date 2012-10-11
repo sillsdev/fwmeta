@@ -1,0 +1,106 @@
+#!/bin/bash
+# Get ancient history from git repo with older commits and splice it with the current history
+
+set -e
+
+GERRIT="gerrit.lsdev.sil.org"
+GERRITPORT=59418
+FWMETAREPO=fwmeta
+TOOLSDIR=fwmeta
+
+addHistory()
+{
+	local repo branches repodir olddir
+	repo=$1
+	branches=$2
+	repodir=$3
+
+	echo -e "${_bold}Processing $repo${_normal}"
+
+	# Test if there is a $repo-antique repository. We query for a non-existing branch which will
+	# succeed if the repo exists, but will keep response time short.
+	if ! git ls-remote git://$GERRIT/$repo-antique.git nonexistant 2> /dev/null; then
+		echo "$repo doesn't have a parallel repo with old history."
+		return
+	fi
+
+	olddir="$(pwd)"
+	cd "$repodir"
+	git fetch origin refs/notes/git-p4:refs/notes/git-p4
+	if ! git remote | grep -q antique; then
+		git remote add antique git://$GERRIT/$repo-antique.git
+	fi
+	git fetch antique refs/notes/git-p4:refs/notes/git-p4-antique
+	for branch in $branches; do
+		echo "Getting history for $branch"
+		if ! git branch -r | grep -q "origin/${branch}$"; then
+			echo "Can't find branch origin/$branch - skipping."
+			continue
+		fi
+
+		if ! git branch -r | grep -q "antique/${branch}$"; then
+			if [ $(git ls-remote antique $branch | wc -l) -gt 0 ]; then
+				git fetch antique $branch
+				for sha in $(git rev-list --max-parents=0 origin/$branch); do
+					git replace $sha antique/$branch
+				done
+			else
+				echo "Branch $branch doesn't exist in antique repo - skipping"
+			fi
+		else
+			echo "Branch $branch was downloaded before - skipping"
+		fi
+	done
+	cd "$olddir"
+}
+
+if echo "$*" | grep "\--debug" > /dev/null; then
+	DEBUG=1
+fi
+
+[ $DEBUG ] && echo "ARGS=$*"
+
+defaultbranches="master develop"
+
+olddir="$(pwd)"
+cd "$(dirname "$0")"
+basedir=$(git rev-parse --show-toplevel)
+cd "$olddir"
+
+[ $DEBUG ] && echo "basedir=$basedir"
+cd "$basedir"
+
+. "$basedir/$TOOLSDIR/functions.sh"
+. "$basedir/$TOOLSDIR/repodefs.sh"
+
+defaultlist=$(git config --get fwinit.repolist) || true
+if [ -z "$defaultlist" ]; then
+	echo "Cant't find list of installed git repos. Please run initrepo first!"
+	exit 1
+fi
+while [ -z "$repolist" ]
+do
+	echo "Available repos: $(getAllReposForPlatform)"
+	repolist=$(readdefault "Repos to get history for" "$defaultlist")
+	for repo in $repolist; do
+		if ! echo "$(getAllReposForPlatform)" | grep -E "(^| )$repo( |$)" >& /dev/null; then
+			echo
+			printf "${_bold}Can't find \"%q\". Please try again.${_normal}\n" $repo
+			repolist=""
+			break
+		fi
+	done
+done;
+
+branchlist=$(git config --get fwinit.branchlist) || true
+branchlist=${branchlist:-$defaultbranches}
+branchlist=$(readdefault "Branches to fetch" "$branchlist")
+
+for repo in $repolist; do
+	repodir=$(getDirForRepo $repo)
+	if [ ! -d "$repodir" ]; then
+		echo "Can't find repo $repo. Please run initrepo first!"
+		exit 2
+	fi
+	addHistory $repo "$branchlist" "$repodir"
+done
