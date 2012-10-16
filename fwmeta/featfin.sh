@@ -20,9 +20,11 @@ fi
 
 feat=${1:-$branch}
 
+set -e
+
 git fetch $origin
-git checkout $feature/$feat
+git checkout $feature$feat
 git rebase $origin/$develop
 git checkout $develop
-git branch -d $feature/$feat
 git pull --rebase $origin $develop
+git branch -d $feature$feat
