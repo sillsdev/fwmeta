@@ -158,6 +158,60 @@ currentCommit()
 	echo ${commit#refs/heads/}
 }
 
+# Finds the parent branch of the current hotfix branch ($1)
+findHotfixParent()
+{
+	local tmpbranch parentbranches curbranch
+	curbranch=$1
+	tmpbranch=$curbranch
+	while ! git branch --contains $tmpbranch | grep -q -v $curbranch; do
+		tmpbranch=$tmpbranch~
+	done
+	parentbranch=$(git branch --contains $tmpbranch | grep -v $curbranch)
+	case "$parentbranch" in
+		*$(git config gitflow.prefix.support)*)
+			echo "${parentbranch#  }"
+			;;
+		*)
+			echo "master"
+			;;
+	esac
+}
+
+# gets the parent branch for branch $1
+getParentBranch()
+{
+	local parent curBranch
+
+	curBranch="$1"
+
+	if git config branch.${curBranch}.merge > /dev/null; then
+		parent=$(git config branch.${curBranch}.merge)
+		parent=${parent#refs/heads/}
+	else
+		case "$curBranch" in
+			$(git config gitflow.prefix.feature)*)
+				parent=develop
+				;;
+			$(git config gitflow.prefix.release)*)
+				parent=develop
+				;;
+			$(git config gitflow.prefix.hotfix)*)
+				# A hotfix branch can derive from master or a support branch. Find out which one.
+				parent=$(findHotfixParent)
+				;;
+			$(git config gitflow.prefix.support)*)
+				parent=master
+				;;
+			*)
+				# non-standard branch naming
+				parent=""
+				;;
+		esac
+	fi
+	echo "$parent"
+}
+
 # define colors (we can't use $(tput bold) because tput isn't installed on Windows by default)
 if [ -z $NOCOLORS ] ; then
 	_bold="\033[1m"

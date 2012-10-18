@@ -3,27 +3,9 @@
 # or on latest of parent branch.
 # If --no-rebase is passed as parameter we only fetch the latest changes but don't rebase.
 
-findHotfixParent()
-{
-	# Finds the branch the current hotfix branch was derived from
-	local tmpbranch parentbranches
-	tmpbranch=$curbranch
-	while ! git branch --contains $tmpbranch | grep -v $curbranch &> /dev/null; do
-		tmpbranch=$tmpbranch~
-	done
-	parentbranch=$(git branch --contains $tmpbranch | grep -v $curbranch)
-	case "$parentbranch" in
-		*$(git config gitflow.prefix.support)*)
-			echo "${parentbranch#  }"
-			;;
-		*)
-			echo "master"
-			;;
-	esac
-}
+. $(dirname $0)/functions.sh
 
-curbranch=$(git symbolic-ref -q HEAD)
-curbranch=${curbranch#refs/heads/}
+curbranch=$(currentBranch)
 
 if [ -z $curbranch ]; then
 	echo "fatal: Can't detect current branch. Rebasing not possible." >&2
@@ -31,33 +13,12 @@ if [ -z $curbranch ]; then
 	exit 1
 fi
 
-if ! git rev-parse --abbrev-ref --symbolic-full-name @{u} &> /dev/null; then
-	# We're on a branch that doesn't have a tracking branch. Rebase on parent branch (or what
-	# we think is parent branch)
-	case "$curbranch" in
-		$(git config gitflow.prefix.feature)*)
-			parent=develop
-			;;
-		$(git config gitflow.prefix.release)*)
-			parent=develop
-			;;
-		$(git config gitflow.prefix.hotfix)*)
-			# A hotfix branch can derive from master or a support branch. Find out which one.
-			parent=$(findHotfixParent)
-			;;
-		$(git config gitflow.prefix.support)*)
-			parent=master
-			;;
-		*)
-			# non-standard branch naming
-			echo "fatal: Non-standard branch naming. Can't detect parent branch." >&2
-			echo "       Rebasing is not possible." >&2
-			exit 2
-			;;
-	esac
-else
-	# We're on a branch that has a tracking branch.
-	parent=$curbranch
+parent=$(getParentBranch "$curbranch")
+if [ -z "$parent" ]; then
+	# non-standard branch naming
+	echo "fatal: Non-standard branch naming. Can't detect parent branch." >&2
+	echo "       Rebasing is not possible." >&2
+	exit 2
 fi
 
 git fetch origin +refs/notes/*:refs/notes/*
