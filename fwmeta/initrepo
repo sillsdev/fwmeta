@@ -356,7 +356,7 @@ if [ -z "$repolist" ]; then
 		echo "Available repos: $(getAllReposForPlatform)"
 		defaultlist="FieldWorks FwSampleProjects"
 		if [ "$(platform)" = "Linux" ]; then
-			defaultlist+=" mono mono-basic gtk-sharp libgdiplus libmono"
+			defaultlist+=" mono mono-basic gtk-sharp libgdiplus libcom"
 		fi
 		repolist=$(readdefault "Repos to clone" "$defaultlist")
 		for repo in $repolist; do
