@@ -24,4 +24,5 @@ mono#mono/mono#Linux#git://github.com/sillsdev
 mono-basic#mono/mono-basic#Linux#git://github.com/sillsdev
 gtk-sharp#mono/gtk-sharp#Linux#git://github.com/sillsdev
 libgdiplus#mono/libgdiplus#Linux#git://github.com/sillsdev
+libcom#libcom#Linux#git://github.com/sillsdev
 test#test##git://github.com/sillsdev"
