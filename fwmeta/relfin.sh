@@ -31,6 +31,6 @@ git pull --rebase $origin $master
 git flow release finish $rel
 git checkout $develop
 git pull $origin $develop
-git push $origin --all
+git push $origin $develop $master
 git push $origin --tags
 [ "$(git ls-remote $origin refs/heads/$release$rel)" = "1" ] && git push $origin :refs/heads/$release$rel || true
