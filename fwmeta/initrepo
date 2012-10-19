@@ -11,7 +11,7 @@ TOOLSDIR=fwmeta
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=7
+THISALIASVERSION=8
 
 # Get the directory of the fwmeta repo. We can't do that in functions.sh because we need to
 # know the directory before we can include functions.sh!
@@ -196,6 +196,13 @@ initrepo()
 			git config --remove-section "guitool.Support/Finish" 2> /dev/null || true
 			git config --remove-section "guitool. Visual Diff" 2> /dev/null || true
 		fi
+		if [ "$(git config --get fwinit.aliasversion || echo -1)" -lt "8" -o "$reset" = "1" ]; then
+			# More cleanup
+			git config --remove-section "guitool.Interactive Rebase" 2> /dev/null || true
+			git config --remove-section "guitool.Interactive Rebase (Continue)" 2> /dev/null || true
+			git config --remove-section "guitool.Interactive Rebase (Abort)" 2> /dev/null || true
+			git config --remove-section guitool.Rebase 2> /dev/null || true
+		fi
 
 		sedReplace="$basedir/$TOOLSDIR"
 		sedReplace=${sedReplace//\//\\\/} # replace all / with \/
@@ -239,11 +246,13 @@ initrepo()
 		git config guitool.3_Support/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git supfin $ARGS'
 		git config guitool.3_Support/2_Finish.argprompt "Name of the new version"
 
+		git config guitool.4_Rebase/Abort.cmd 'git rebase --abort'
+		git config guitool.4_Rebase/Continue.cmd 'GIT_EDITOR=$(git config --get gui.editor) git rebase --continue'
+		git config guitool.4_Rebase/Interactive.cmd 'GIT_EDITOR=$(git config --get gui.editor) git rebase -i $REVISION'
+		git config guitool.4_Rebase/Interactive.revprompt yes
+		git config guitool.4_Rebase/Update.cmd 'git pullrebase'
+
 		git config "guitool.Advanced/Bypass Code Review.cmd" 'git bypass'
-		git config "guitool.Interactive Rebase.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git rebase -i $REVISION'
-		git config "guitool.Interactive Rebase.revprompt" yes
-		git config "guitool.Interactive Rebase (Continue).cmd" 'git rebase --continue'
-		git config "guitool.Interactive Rebase (Abort).cmd" 'git rebase --abort'
 		git config "guitool.Visual Diff.cmd" 'git difftool -y HEAD $FILENAME'
 		git config "guitool.Visual Diff.needsfile" yes
 		git config "guitool.Visual Diff.noconsole" yes
@@ -252,7 +261,6 @@ initrepo()
 		git config "guitool.Visual Merge and Push.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git mergepush'
 		git config "guitool.Visual Merge.noconsole" yes
 
-		git config guitool.Rebase.cmd 'git pullrebase'
 		git config "guitool.Global Repo Status.cmd" 'git globstat --no-colors'
 
 		git config fwinit.aliasversion "$THISALIASVERSION"
