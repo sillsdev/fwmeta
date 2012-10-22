@@ -1,5 +1,11 @@
 #!/bin/bash
 # Initializes and clones git repos needed for FW development
+#
+# Usage:
+# initrepo [--reset|--modify]
+#     --reset: reset repo by asking all questions and performing all initializations again
+#     --modify: allow to change the selection of repos and branches. Note: this doesn't delete
+#               any repos or branches.
 
 set -e
 
@@ -303,13 +309,14 @@ if ! echo "$*" | grep "\--recursive" > /dev/null; then
 	fi
 	echo
 	# recursive call so that we run with the latest version
-	"$basedir/$TOOLSDIR/initrepo" --recursive $*
-	exit
+	exec "$basedir/$TOOLSDIR/initrepo" --recursive "$@"
 fi
 shift
 [ $DEBUG ] && echo "Called recursively"
 reset=0
 [ "$1" = "--reset" ] && reset=1
+modify=0
+[ "$1" = "--modify" ] && modify=1
 
 . "$basedir/$TOOLSDIR/functions.sh"
 . "$basedir/$TOOLSDIR/repodefs.sh"
@@ -361,18 +368,24 @@ if [ -z "$mergetool" -o "$reset" = 1 ]; then
 fi
 
 repolist=$(git config --get fwinit.repolist) || true
-[ "$reset" = 1 ] && repolist=""
+repolist_orig=$repolist
+[ "$reset" = 1 ] && repolist_orig=""
+[ "$reset" = 1 -o "$modify" = 1 ] && repolist=""
 if [ -z "$repolist" ]; then
 	while [ -z "$repolist" ]
 	do
-		echo "Available repos: $(getAllReposForPlatform)"
+		echo -e "${_bold}Available repos:${_normal} $(getAllReposForPlatform)"
 		defaultlist="FieldWorks FwSampleProjects"
 		if [ "$(platform)" = "Linux" ]; then
 			defaultlist+=" mono mono-basic gtk-sharp libgdiplus libcom"
 		fi
+		if [ "$modify" = 1 ]; then
+			echo -e "${_bold}Default repos:${_normal} $defaultlist"
+			defaultlist=$repolist_orig
+		fi
 		repolist=$(readdefault "Repos to clone" "$defaultlist")
 		for repo in $repolist; do
-			if ! echo "$(getAllReposForPlatform)" | grep -E "(^| )$repo( |$)" >& /dev/null; then
+			if ! echo "$(getAllRepos)" | grep -E "(^| )$repo( |$)" >& /dev/null; then
 				echo
 				printf "${_bold}Can't find \"%q\". Please try again.${_normal}\n" $repo
 				repolist=""
@@ -384,8 +397,14 @@ if [ -z "$repolist" ]; then
 	git config fwinit.repolist "$repolist"
 fi
 branchlist=$(git config --get fwinit.branchlist) || true
-[ "$reset" = 1 ] && branchlist=""
+branchlist_orig=$branchlist
+[ "$reset" = 1 ] && branchlist_orig=""
+[ "$reset" = 1 -o "$modify" = 1 ] && branchlist=""
 if [ -z "$branchlist" ]; then
+	if [ "$modify" = 1 ]; then
+		echo -e "${_bold}Default branches:${_normal} $defaultbranches"
+		defaultbranches=$branchlist_orig
+	fi
 	branchlist=$(readdefault "Branches to fetch" "$defaultbranches")
 	git config fwinit.branchlist "$branchlist"
 fi
