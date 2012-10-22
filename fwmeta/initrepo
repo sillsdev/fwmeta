@@ -274,7 +274,10 @@ fi
 
 [ $DEBUG ] && echo "ARGS=$*"
 
-defaultbranches="master develop release/7.2.7"
+defaultbranches="master develop"
+if [ "$OSTYPE" = "linux-gnu" ]; then
+	defaultbranches+=" support/7.0-Linux"
+fi
 
 basedir="$(getfwmetadirBootStrap)"
 [ $DEBUG ] && echo "basedir=$basedir"
