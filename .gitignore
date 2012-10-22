@@ -6,3 +6,8 @@
 /mono/
 /WorldPad/
 /test/
+
+# The following 3 are symbolic links which are treated as files
+/COM
+/Win32Base
+/Win32More
