@@ -19,6 +19,22 @@ TOOLSDIR=fwmeta
 # script is run.
 THISALIASVERSION=8
 
+# Display help
+help()
+{
+echo -e "Usage:
+$(basename "$0") [options]
+
+Options:\
+\n    --reset    Reset repo by asking all questions and performing all initializations\
+\n               again.\
+\n    --modify   Allow changing the selection of repos and branches. Note: this doesn't\
+\n               delete any repos or branches.\
+\n    --help|-h  Display this help screen.\
+\n    --debug    Output debug information.\
+\n"
+}
+
 # Get the directory of the fwmeta repo. We can't do that in functions.sh because we need to
 # know the directory before we can include functions.sh!
 getfwmetadirBootStrap()
@@ -281,9 +297,22 @@ initrepo()
 	cd "$cwd"
 }
 
-if echo "$*" | grep "\--debug" > /dev/null; then
-	DEBUG=1
-fi
+TEMP=$(getopt -o h --long help --long debug --long recursive --long reset --long modify -n "$(basename "$0")" -- "$@")
+
+eval set -- "$TEMP"
+
+while true ; do
+	case "$1" in
+		-h|--help) help ; exit 0;;
+		--debug) DEBUG=1 ;;
+		--recursive) RECURSIVE=1 ;;
+		--reset) reset=1 ;;
+		--modify) modify=1 ;;
+		--) shift; break;;
+		*) echo "Internal error!" ; exit 1 ;;
+	esac
+	shift
+done
 
 [ $DEBUG ] && echo "ARGS=$*"
 
@@ -295,7 +324,7 @@ fi
 basedir="$(getfwmetadirBootStrap)"
 [ $DEBUG ] && echo "basedir=$basedir"
 cd "$basedir"
-if ! echo "$*" | grep "\--recursive" > /dev/null; then
+if [ $RECURSIVE ]; then
 	branchlist="$defaultbranches"
 	[ $DEBUG ] && echo "Called non-recursive"
 	if [ -d ".git" ] && git remote | grep -q origin ; then
@@ -318,12 +347,7 @@ if ! echo "$*" | grep "\--recursive" > /dev/null; then
 	# recursive call so that we run with the latest version
 	exec "$basedir/$TOOLSDIR/initrepo" --recursive "$@"
 fi
-shift
 [ $DEBUG ] && echo "Called recursively"
-reset=0
-[ "$1" = "--reset" ] && reset=1
-modify=0
-[ "$1" = "--modify" ] && modify=1
 
 . "$basedir/$TOOLSDIR/functions.sh"
 . "$basedir/$TOOLSDIR/repodefs.sh"
