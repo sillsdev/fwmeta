@@ -99,6 +99,9 @@ clonerepo()
 		if [ $(git ls-remote origin refs/heads/$branch | wc -l) -gt 0 ]; then
 			git config --add remote.origin.fetch "+refs/heads/$branch:refs/remotes/origin/$branch"
 			git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
+			git config branch.$branch.rebase true
+			git config branch.$branch.remote origin
+			git config branch.$branch.merge refs/heads/$branch
 		fi
 	done
 	git fetch origin
@@ -139,6 +142,10 @@ initrepo()
 	git config core.whitespace "blank-at-eol,space-before-tab,indent-with-non-tab,blank-at-eof,tabwidth=4"
 	git config apply.ignorewhitespace change
 	git config apply.whitespace fix
+
+	# Set branch defaults
+	git config branch.autosetupmerge true
+	git config branch.autosetuprebase always
 
 	# install hooks
 	if [ "$reset" = "1" -o ! -f .git/hooks/commit-msg -o ! -f .git/hooks/commit-msg1_add-change-id ]; then
