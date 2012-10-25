@@ -8,6 +8,34 @@ GERRITPORT=59418
 FWMETAREPO=fwmeta
 TOOLSDIR=fwmeta
 
+# Display help
+help()
+{
+echo -e "Usage:\
+\n    $(basename "$0") [options]
+
+Options:\
+\n    -h|--help\
+\n         Display this help screen.
+\n    -v|--version\
+\n         Display the version number.
+\n    --debug\
+\n         Output debug information.\
+\n"
+}
+
+# Display version number
+showVersion()
+{
+	echo "$(basename "$0") $(git describe --dirty)"
+}
+
+debug()
+{
+	[ $DEBUG ] && echo -e "$@"
+	return 0
+}
+
 addHistory()
 {
 	local repo branches repodir olddir
@@ -54,21 +82,40 @@ addHistory()
 	cd "$olddir"
 }
 
-if echo "$*" | grep "\--debug" > /dev/null; then
-	DEBUG=1
-fi
-
-[ $DEBUG ] && echo "ARGS=$*"
-
-defaultbranches="master develop"
-
 olddir="$(pwd)"
 cd "$(dirname "$0")"
 basedir=$(git rev-parse --show-toplevel)
-cd "$olddir"
-
-[ $DEBUG ] && echo "basedir=$basedir"
 cd "$basedir"
+
+debug "basedir=$basedir"
+
+# On Windows we want to use getopt in our directory since the other one
+# is broken
+if [ "$OSTYPE" = "msys" ]; then
+	GETOPT="$basedir/$TOOLSDIR/getopt"
+else
+	GETOPT="getopt"
+fi
+
+ORIG_ARGS=("$@")
+OPTS=$($GETOPT -o hv --long help --long debug --long version -n "$(basename "$0")" -- "$@")
+
+eval set -- "$OPTS"
+
+while true ; do
+	case "$1" in
+		-h|--help) help ; exit 0;;
+		--debug) DEBUG=1 ;;
+		-v|--version) showVersion ; exit 0;;
+		--) shift; break;;
+		*) echo "Internal error: Unknown argument: $1" ; exit 1 ;;
+	esac
+	shift
+done
+
+debug "ARGS=$@"
+
+defaultbranches="master develop"
 
 . "$basedir/$TOOLSDIR/functions.sh"
 . "$basedir/$TOOLSDIR/repodefs.sh"
@@ -80,7 +127,7 @@ if [ -z "$defaultlist" ]; then
 fi
 while [ -z "$repolist" ]
 do
-	echo "Available repos: $(getAllReposForPlatform)"
+	echo -e "${_bold}Available repos:${_normal} $(getAllReposForPlatform)"
 	repolist=$(readdefault "Repos to get history for" "$defaultlist")
 	for repo in $repolist; do
 		if ! echo "$(getAllReposForPlatform)" | grep -E "(^| )$repo( |$)" >& /dev/null; then
