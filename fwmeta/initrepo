@@ -26,13 +26,23 @@ echo -e "Usage:\
 \n    $(basename "$0") [options]
 
 Options:\
-\n    --reset    Reset repo by asking all questions and performing all\
-\n               initializations again.\
-\n    --modify   Allow changing the selection of repos and branches.\
-\n               Note: this doesn't delete any repos or branches.\
-\n    -h|--help  Display this help screen.\
-\n    --debug    Output debug information.\
+\n    --reset       Reset repo by asking all questions and performing all\
+\n                  initializations again.\
+\n    --modify      Allow changing the selection of repos and branches.\
+\n                  Note: this doesn't delete any repos or branches.\
+\n    -h|--help     Display this help screen.\
+\n    --debug       Output debug information.\
+\n    -v|--version  Display the version number.\
 \n"
+}
+
+# Display version number
+showVersion()
+{
+	basedir="$(getfwmetadirBootStrap)"
+	[ $DEBUG ] && echo "basedir=$basedir"
+	cd "$basedir"
+	echo "$(basename "$0") $(git describe --dirty)"
 }
 
 # Get the directory of the fwmeta repo. We can't do that in functions.sh because we need to
@@ -297,7 +307,6 @@ initrepo()
 	cd "$cwd"
 }
 
-
 basedir="$(getfwmetadirBootStrap)"
 # On Windows we want to use getopt in our directory since the other one
 # is broken
@@ -308,7 +317,7 @@ else
 fi
 
 ORIG_ARGS=("$@")
-OPTS=$($GETOPT -o h --long help --long debug --long recursive --long reset --long modify -n "$(basename "$0")" -- "$@")
+OPTS=$($GETOPT -o hv --long help --long debug --long recursive --long reset --long modify  --long version -n "$(basename "$0")" -- "$@")
 
 eval set -- "$OPTS"
 
@@ -319,8 +328,9 @@ while true ; do
 		--recursive) RECURSIVE=1 ;;
 		--reset) reset=1 ;;
 		--modify) modify=1 ;;
+		-v|--version) showVersion ; exit 0;;
 		--) shift; break;;
-		*) echo "Internal error: Unknown argument $1!" ; exit 1 ;;
+		*) echo "Internal error: Unknown argument: $1" ; exit 1 ;;
 	esac
 	shift
 done
