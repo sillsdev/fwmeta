@@ -26,13 +26,21 @@ echo -e "Usage:\
 \n    $(basename "$0") [options]
 
 Options:\
-\n    --reset       Reset repo by asking all questions and performing all\
-\n                  initializations again.\
-\n    --modify      Allow changing the selection of repos and branches.\
-\n                  Note: this doesn't delete any repos or branches.\
-\n    -h|--help     Display this help screen.\
-\n    --debug       Output debug information.\
-\n    -v|--version  Display the version number.\
+\n    -r|--reset\
+\n         Reset repo by asking all questions and performing all\
+\n         initializations again.
+\n    -m|--modify\
+\n         Allow changing the selection of repos and branches.\
+\n         Note: this doesn't delete any repos or branches.
+\n    -h|--help\
+\n         Display this help screen.
+\n    -v|--version\
+\n         Display the version number.
+\n    --basedir <path>\
+\n         Path to the toplevel directory of the fwmeta repo.\
+\n         Mainly used internally.
+\n    --debug\
+\n         Output debug information.\
 \n"
 }
 
@@ -40,9 +48,15 @@ Options:\
 showVersion()
 {
 	basedir="$(getfwmetadirBootStrap)"
-	[ $DEBUG ] && echo "basedir=$basedir"
+	debug "basedir=$basedir"
 	cd "$basedir"
 	echo "$(basename "$0") $(git describe --dirty)"
+}
+
+debug()
+{
+	[ $DEBUG ] && echo -e "$@"
+	return 0
 }
 
 # Get the directory of the fwmeta repo. We can't do that in functions.sh because we need to
@@ -156,7 +170,7 @@ initrepo()
 
 	echo
 	echo -e "${_bold}Initializing project $repo${_normal}"
-	[ $DEBUG ] && echo "basedir in initrepo=$basedir"
+	debug "basedir in initrepo=$basedir"
 
 	cwd=$(pwd)
 
@@ -317,7 +331,7 @@ else
 fi
 
 ORIG_ARGS=("$@")
-OPTS=$($GETOPT -o hv --long help --long debug --long recursive --long reset --long modify  --long version -n "$(basename "$0")" -- "$@")
+OPTS=$($GETOPT -o hvrm --long help --long debug --long recursive --long reset --long modify  --long version --long basedir: -n "$(basename "$0")" -- "$@")
 
 eval set -- "$OPTS"
 
@@ -326,51 +340,80 @@ while true ; do
 		-h|--help) help ; exit 0;;
 		--debug) DEBUG=1 ;;
 		--recursive) RECURSIVE=1 ;;
-		--reset) reset=1 ;;
-		--modify) modify=1 ;;
 		-v|--version) showVersion ; exit 0;;
+		-r|--reset) reset=1 ;;
+		-m|--modify) modify=1 ;;
+		--basedir) basedir=$2 ; shift ;;
 		--) shift; break;;
 		*) echo "Internal error: Unknown argument: $1" ; exit 1 ;;
 	esac
 	shift
 done
-
-[ $DEBUG ] && echo -e "***************\nARGS=${ORIG_ARGS[@]}"
+debug "***************\nARGS=${ORIG_ARGS[@]}"
 
 defaultbranches="master develop"
 if [ "$OSTYPE" = "linux-gnu" ]; then
 	defaultbranches+=" support/7.0-Linux"
 fi
 
-[ $DEBUG ] && echo "basedir=$basedir"
+debug "basedir=$basedir"
+tmpdir=${TMPDIR-/tmp}/fwmeta-$$
+SRC="$0"
+DST="$tmpdir/$(basename "$0")"
+
 cd "$basedir"
 if [ ! $RECURSIVE ]; then
 	branchlist="$defaultbranches"
-	[ $DEBUG ] && echo "Called non-recursive"
-	if [ -d ".git" ] && git remote | grep -q origin ; then
-		# fwmeta repo exists. Let's see if we're on a branch that has a tracking-branch.
-		# If we are then update the repo, otherwise assume we're in the middle of
-		# developing some changes, so we leave it alone.
-		if git rev-parse --abbrev-ref --symbolic-full-name @{u} &> /dev/null; then
-			echo "Updating $FWMETAREPO"
-			git pull --rebase origin
-		fi
-	else
-		# fwmeta repo doesn't exist yet. Clone it.
-		echo "Cloning $FWMETAREPO"
-		clonerepo $FWMETAREPO $FWMETAREPO
+	debug "Called non-recursive"
 
-		basedir="$basedir/$FWMETAREPO"
-		cd "$basedir"
+	# We can't directly call "git pull origin master" since initrepo is
+	# locked on Windows. Instead we copy the initrepo script to a
+	# temporary directory and call it there to do the update and then
+	# do the recursive call so that we run with the latest version
+	# of initrepo.
+	if [ "$SRC" != "$DST" ] ; then
+		debug "Copying script to temp directory: $tmpdir"
+		mkdir -p "$tmpdir"
+		cp "$SRC" "$DST"
+		exec "$DST" --basedir "$basedir" "${ORIG_ARGS[@]}"
+	else
+		debug "Executing script in temp directory: $tmpdir"
+		if [ -d ".git" ] && git remote | grep -q origin ; then
+			git fetch origin
+			if git ls-files -m -c -d | grep -q . ; then
+				echo "WARNING: You have a dirty working directory - not updating $FWMETAREPO"
+			else
+				# fwmeta repo exists. Let's see if we're on a branch
+				# that has a tracking-branch. If we are then update the
+				# repo, otherwise assume we're in the middle of
+				# developing some changes, so we leave it alone.
+				if git rev-parse --abbrev-ref --symbolic-full-name @{u} &> /dev/null; then
+					echo "Updating $FWMETAREPO"
+					git rebase @{u}
+				fi
+			fi
+		else
+			# fwmeta repo doesn't exist yet. Clone it.
+			echo "Cloning $FWMETAREPO"
+			clonerepo "$FWMETAREPO" "$FWMETAREPO"
+
+			basedir="$basedir/$FWMETAREPO"
+			cd "$basedir"
+			echo
+		fi
+		# recursive call so that we run with the latest version
+		exec "$TOOLSDIR/$(basename "$0")" --recursive "${ORIG_ARGS[@]}"
 	fi
-	echo
-	# recursive call so that we run with the latest version
-	exec "$basedir/$TOOLSDIR/initrepo" --recursive "${ORIG_ARGS[@]}"
 fi
-[ $DEBUG ] && echo "Called recursively"
+debug "Called recursively"
 
 . "$basedir/$TOOLSDIR/functions.sh"
 . "$basedir/$TOOLSDIR/repodefs.sh"
+
+# delete temporary directory we created for the initrepo script while updating the repo
+if [ -n $tmpdir ]; then
+	rm -rf $tmpdir
+fi
 
 # Sanity checks
 if ! git flow version &>/dev/null; then
