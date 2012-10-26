@@ -1,11 +1,5 @@
 #!/bin/bash
 # Initializes and clones git repos needed for FW development
-#
-# Usage:
-# initrepo [--reset|--modify]
-#     --reset: reset repo by asking all questions and performing all initializations again
-#     --modify: allow to change the selection of repos and branches. Note: this doesn't delete
-#               any repos or branches.
 
 set -e
 
