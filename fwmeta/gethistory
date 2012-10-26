@@ -15,9 +15,9 @@ echo -e "Usage:\
 \n    $(basename "$0") [options]
 
 Options:\
-\n    -h|--help\
+\n    -h,--help\
 \n         Display this help screen.
-\n    -v|--version\
+\n    -v,--version\
 \n         Display the version number.
 \n    --debug\
 \n         Output debug information.\

@@ -26,15 +26,15 @@ echo -e "Usage:\
 \n    $(basename "$0") [options]
 
 Options:\
-\n    -r|--reset\
+\n    -r,--reset\
 \n         Reset repo by asking all questions and performing all\
 \n         initializations again.
-\n    -m|--modify\
+\n    -m,--modify\
 \n         Allow changing the selection of repos and branches.\
 \n         Note: this doesn't delete any repos or branches.
-\n    -h|--help\
+\n    -h,--help\
 \n         Display this help screen.
-\n    -v|--version\
+\n    -v,--version\
 \n         Display the version number.
 \n    --basedir <path>\
 \n         Path to the toplevel directory of the fwmeta repo.\
