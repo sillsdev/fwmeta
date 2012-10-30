@@ -177,6 +177,11 @@ initrepo()
 	git config apply.ignorewhitespace change
 	git config apply.whitespace fix
 
+	# Set CRLF conversion on Windows
+	if [ "$OSTYPE" = "msys" ]; then
+		git config core.autocrlf true
+	fi
+
 	# Set branch defaults
 	git config branch.autosetupmerge true
 	git config branch.autosetuprebase always
