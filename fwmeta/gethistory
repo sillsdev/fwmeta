@@ -11,17 +11,38 @@ TOOLSDIR=fwmeta
 # Display help
 help()
 {
-echo -e "Usage:\
+echo -e "${_bold}Usage:${_normal}\
 \n    $(basename "$0") [options]
 
-Options:\
+${_bold}Description:${_normal}\
+\n    Gets the older history for the git repos belonging to\
+\n    FieldWorks and ties them into the current history. This\
+\n    makes it possible to look at the entire history of the\
+\n    FieldWorks project.
+\n    The script will ask for which repos and which branches it\
+\n    should get the older history.
+
+${_bold}Options:${_normal}\
 \n    -h,--help\
 \n         Display this help screen.
 \n    -v,--version\
 \n         Display the version number.
+\n    --alternate-url <url>\
+\n         The base of an alternate URL that will be used to\
+\n         fetch the older history in addition to fetching from\
+\n         $GERRIT. The name of the repo will be\
+\n         appended to the URL specified here. Any URL that\
+\n         is acceptable to git fetch can be used.
 \n    --debug\
-\n         Output debug information.\
-\n"
+\n         Output debug information.
+
+${_bold}Examples:${_normal}\
+\n         $ gethistory --alternate-url /c/antique-repos\
+\n    will fetch FieldWorks from /c/antique-repos/FieldWorks-antique.git.
+
+${_bold}Note:${_normal}\
+\n    It is not necessary that all repos exist under the\
+\n    alternate URL location."
 }
 
 # Display version number
@@ -58,6 +79,13 @@ addHistory()
 	if ! git remote | grep -q antique; then
 		git remote add antique git://$GERRIT/$repo-antique.git
 	fi
+	if [ -n $ALTERNATE_URL ]; then
+		if [ $(git ls-remote $ALTERNATE_URL/${repo}-antique.git refs/notes/git-p4 2>/dev/null | wc -l) -gt 0 ]; then
+			debug "Fetching git-p4 notes from $ALTERNATE_URL/${repo}-antique.git"
+			git fetch $ALTERNATE_URL/${repo}-antique.git refs/notes/git-p4:refs/notes/git-p4-antique
+		fi
+	fi
+	debug "Fetching git-p4 notes for ${repo}-antique.git from antique"
 	git fetch antique refs/notes/git-p4:refs/notes/git-p4-antique
 	for branch in $branches; do
 		echo "Getting history for $branch"
@@ -68,6 +96,13 @@ addHistory()
 
 		if ! git branch -r | grep -q "antique/${branch}$"; then
 			if [ $(git ls-remote antique $branch | wc -l) -gt 0 ]; then
+				if [ -n $ALTERNATE_URL ]; then
+					if [ $(git ls-remote $ALTERNATE_URL/${repo}-antique.git $branch 2>/dev/null | wc -l) -gt 0 ]; then
+						debug "Fetching $branch from $ALTERNATE_URL/${repo}-antique.git"
+						git fetch $ALTERNATE_URL/${repo}-antique.git refs/heads/$branch:refs/remotes/antique/$branch
+					fi
+				fi
+				debug "Fetching $branch from antique"
 				git fetch antique $branch
 				for sha in $(git rev-list --max-parents=0 origin/$branch); do
 					git replace $sha antique/$branch
@@ -87,7 +122,8 @@ cd "$(dirname "$0")"
 basedir=$(git rev-parse --show-toplevel)
 cd "$basedir"
 
-debug "basedir=$basedir"
+. "$basedir/$TOOLSDIR/functions.sh"
+. "$basedir/$TOOLSDIR/repodefs.sh"
 
 # On Windows we want to use getopt in our directory since the other one
 # is broken
@@ -98,12 +134,13 @@ else
 fi
 
 ORIG_ARGS=("$@")
-OPTS=$($GETOPT -o hv --long help --long debug --long version -n "$(basename "$0")" -- "$@")
+OPTS=$($GETOPT -o hv --long help --long debug --long version --long alternate-url: -n "$(basename "$0")" -- "$@")
 
 eval set -- "$OPTS"
 
 while true ; do
 	case "$1" in
+		--alternate-url) ALTERNATE_URL=$2 ; shift ;;
 		-h|--help) help ; exit 0;;
 		--debug) DEBUG=1 ;;
 		-v|--version) showVersion ; exit 0;;
@@ -113,12 +150,10 @@ while true ; do
 	shift
 done
 
+debug "basedir=$basedir"
 debug "ARGS=$@"
 
 defaultbranches="master develop"
-
-. "$basedir/$TOOLSDIR/functions.sh"
-. "$basedir/$TOOLSDIR/repodefs.sh"
 
 defaultlist=$(git config --get fwinit.repolist) || true
 if [ -z "$defaultlist" ]; then
