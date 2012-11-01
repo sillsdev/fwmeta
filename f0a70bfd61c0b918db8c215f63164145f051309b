@@ -1,0 +1,8 @@
+Verified+1: Jenkins CI
+Verified-Linux+1: Jenkins CI
+Code-Review+2: MarkS <marksvc@gmail.com>
+Submitted-by: Eberhard Beilharz <eb1@sil.org>
+Submitted-at: Thu, 01 Nov 2012 08:16:00 +0000
+Reviewed-on: https://gerrit.lsdev.sil.org/239
+Project: fwmeta
+Branch: refs/heads/develop
