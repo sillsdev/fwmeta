@@ -1,0 +1,63 @@
+#!/bin/bash
+# Unit tests for functions.sh
+
+oneTimeSetUp()
+{
+	. ../functions.sh
+
+	dir=$(pwd)
+	tmpdir=$(mktempdir)
+	cd $tmpdir
+	git init -q functionTests
+	cd $tmpdir/functionTests
+	touch fileA
+	git add fileA
+	git commit -q -m "Initial commit"
+	git checkout -q -b develop
+	touch fileB
+	git add fileB
+	git commit -q -m "Second commit"
+	echo "Some text" >> fileB
+	git commit -q -a -m "Third commit"
+	cd $dir
+}
+
+oneTimeTearDown()
+{
+	cd $HOME
+	rm -rf $tmpdir
+}
+
+testCurrentBranch_develop()
+{
+	cd $tmpdir/functionTests
+	git checkout -q develop
+	assertEquals "Didn't detect correct branch." "develop" "$(currentBranch)"
+	cd $dir
+}
+
+testCurrentBranch_NoBranch()
+{
+	cd $tmpdir/functionTests
+	git checkout -q develop^
+	assertEquals "Didn't detect correct branch." "(no branch)" "$(currentBranch)"
+	cd $dir
+}
+
+testCurrentCommit_Branch()
+{
+	cd $tmpdir/functionTests
+	git checkout -q develop
+	assertEquals "Didn't detect correct commit." "develop" "$(currentCommit)"
+	cd $dir
+}
+
+testCurrentCommit_NoBranch()
+{
+	cd $tmpdir/functionTests
+	git checkout -q develop^
+	assertEquals "Didn't detect correct commit." "develop~1" "$(currentCommit)"
+	cd $dir
+}
+
+. shunit2/src/shunit2

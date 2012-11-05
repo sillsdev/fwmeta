@@ -1,0 +1,11 @@
+#!/bin/bash
+failures=0
+for f in *Tests; do
+	echo "******************"
+	echo "Executing $f:"
+	echo
+	./$f || ((++failures))
+done
+echo "******************"
+echo "Total of $failures test suites failed."
+exit $failures

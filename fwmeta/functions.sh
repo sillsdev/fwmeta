@@ -214,6 +214,15 @@ getParentBranch()
 	echo "$parent"
 }
 
+mktempdir()
+{
+	# using mktemp didn't work reliably on Windows
+	local tmpdir
+	tmpdir="${TMP-/tmp}/fwmeta-$$"
+	mkdir -p "$tmpdir"
+	echo "$tmpdir"
+}
+
 # define colors (we can't use $(tput bold) because tput isn't installed on Windows by default)
 if [ -z $NOCOLORS ] ; then
 	_bold="\033[1m"

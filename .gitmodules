@@ -1,0 +1,3 @@
+[submodule "fwmeta/tests/shunit2"]
+	path = fwmeta/tests/shunit2
+	url = git://github.com/zanshine/shunit2.git
