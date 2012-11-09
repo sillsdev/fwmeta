@@ -99,9 +99,9 @@ clonerepo()
 
 	# Initialize origin
 	if [ "$reset" = "1" ] || ! git remote | grep -q origin; then
-		repouri="$(getHostForRepo $repo)"
+		repouri="$(getUrlForRepo $repo)"
 		git remote rm origin 2>/dev/null || true
-		git remote add origin "$repouri/$repo.git"
+		git remote add origin "$repouri"
 	fi
 
 	# setup push URL
@@ -410,7 +410,6 @@ fi
 debug "Called recursively"
 
 . "$basedir/$TOOLSDIR/functions.sh"
-. "$basedir/$TOOLSDIR/repodefs.sh"
 
 # delete temporary directory we created for the initrepo script while updating the repo
 if [ -n $tmpdir ]; then

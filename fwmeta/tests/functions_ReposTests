@@ -1,0 +1,37 @@
+#!/bin/bash
+# Unit tests for functions.sh: getting information about repos
+
+oneTimeSetUp()
+{
+	REPOCONFIG="$(pwd)/functions_ReposTests.config"
+	FWMETAREPO=xyz
+	. ../functions.sh
+}
+
+testGetAllRepos()
+{
+	assertEquals "Got wrong list of repos." "repo1 repo2 repo3" "$(getAllRepos)"
+}
+
+testGetAllReposForPlatform()
+{
+	OSTYPE="linux-gnu"
+	assertEquals "Got wrong list of repos." "repo1 repo2" "$(getAllReposForPlatform)"
+}
+
+testGetDirForRepo()
+{
+	assertEquals "Got wrong directory." "dir1/dir3" "$(getDirForRepo "repo3")"
+}
+
+testGetUrlForRepo_default()
+{
+	assertEquals "Got wrong URL" "git://example.com/myrepos/repo2.git" "$(getUrlForRepo "repo2")"
+}
+
+testGetUrlForRepo_other()
+{
+	assertEquals "Got wrong URL" "ssh://other.example.com/winrepo" "$(getUrlForRepo "repo3")"
+}
+
+. shunit2/src/shunit2

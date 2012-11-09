@@ -16,7 +16,6 @@ basedir=$(git rev-parse --show-toplevel)
 cd "$olddir"
 
 . "$basedir/$TOOLSDIR/functions.sh"
-. "$basedir/$TOOLSDIR/repodefs.sh"
 
 if [ ! -z $NOCOLORS ] ; then
 	_nl="\n"

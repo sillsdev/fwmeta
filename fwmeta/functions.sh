@@ -2,6 +2,8 @@
 # Shell functions
 # This file gets included in several other scripts
 
+REPOCONFIG=${REPOCONFIG:-${basedir}/${TOOLSDIR}/repodefs.config}
+
 readdefault()
 {
 	# parameters:
@@ -74,17 +76,12 @@ getfwmetadir()
 # gets all repos listed in repodefs.sh
 getAllRepos()
 {
-	local repo dir repoplatform host
+	local allrepos repo
+
 	allrepos=()
-	IFS=$'\n'
-	for line in $locations
+	for repo in $(git config -f "$REPOCONFIG" --get-regexp 'repo\..*\.path' | cut --delimiter=. --fields=2 | grep -v "^${FWMETAREPO}\$")
 	do
-		while IFS='#' read -r repo dir repoplatform host
-		do
-			if [ "$repo" != "$FWMETAREPO" ]; then
-				allrepos+=("$repo")
-			fi
-		done <<< $line
+		allrepos+=("$repo")
 	done
 	echo "${allrepos[@]}"
 }
@@ -92,19 +89,14 @@ getAllRepos()
 # gets all repos suitable for the current platform
 getAllReposForPlatform()
 {
-	local repo dir repoplatform host
+	local allrepos repo
 	allrepos=()
-	IFS=$'\n'
-	for line in $locations
+	for repo in $(git config -f "$REPOCONFIG" --get-regexp 'repo\..*\.path' | cut --delimiter=. --fields=2 | grep -v "^${FWMETAREPO}\$")
 	do
-		while IFS='#' read -r repo dir repoplatform host
-		do
-			if [ "$repo" != "$FWMETAREPO" ]; then
-				if [ -z "$repoplatform" ] || [ "$repoplatform" = "$(platform)" ]; then
-					allrepos+=("$repo")
-				fi
-			fi
-		done <<< $line
+		repoplatform=$(git config -f "$REPOCONFIG" --get "repo.$repo.platform")
+		if [ -z "$repoplatform" ] || [ "$repoplatform" = "$(platform)" ]; then
+			allrepos+=("$repo")
+		fi
 	done
 	echo "${allrepos[@]}"
 }
@@ -112,37 +104,19 @@ getAllReposForPlatform()
 # gets the path for repo $1
 getDirForRepo()
 {
-	local repo dir platform host
-	IFS=$'\n'
-	for line in $locations
-	do
-		while IFS='#' read -r repo dir platform host
-		do
-			if [ "$repo" = "$1" ]; then
-				echo "$dir"
-				return
-			fi
-		done <<< $line
-	done
-	echo "Repo $1 not found" >&2
+	git config -f "$REPOCONFIG" --get "repo.$1.path"
 }
 
-# gets the host for repo $1
-getHostForRepo()
+# gets the URL for repo $1
+getUrlForRepo()
 {
-	local repo dir platform host
-	IFS=$'\n'
-	for line in $locations
-	do
-		while IFS='#' read -r repo dir platform host
-		do
-			if [ "$repo" = "$1" ]; then
-				echo "$host"
-				return
-			fi
-		done <<< $line
-	done
-	echo "Repo $1 not found" >&2
+	url=$(git config -f "$REPOCONFIG" --get "repo.$1.url")
+	if [ -n "$url" ]; then
+		echo "$url"
+	else
+		url=$(git config -f "$REPOCONFIG" --get repo.defaulturl)
+		echo "$url/$1.git"
+	fi
 }
 
 currentBranch()
