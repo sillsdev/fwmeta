@@ -10,13 +10,13 @@ oneTimeSetUp()
 
 testGetAllRepos()
 {
-	assertEquals "Got wrong list of repos." "repo1 repo2 repo3" "$(getAllRepos)"
+	assertEquals "Got wrong list of repos." "repo1 repo2 repo3 repo4" "$(getAllRepos)"
 }
 
 testGetAllReposForPlatform()
 {
 	OSTYPE="linux-gnu"
-	assertEquals "Got wrong list of repos." "repo1 repo2" "$(getAllReposForPlatform)"
+	assertEquals "Got wrong list of repos." "repo1 repo2 repo4" "$(getAllReposForPlatform)"
 }
 
 testGetDirForRepo()
@@ -32,6 +32,71 @@ testGetUrlForRepo_default()
 testGetUrlForRepo_other()
 {
 	assertEquals "Got wrong URL" "ssh://other.example.com/winrepo" "$(getUrlForRepo "repo3")"
+}
+
+testIsModule_Module()
+{
+	assertTrue "Didn't detect module" "__isModule repo4"
+}
+
+testIsModule_NoModule()
+{
+	assertFalse "Wrongly detected module" "__isModule repo3"
+}
+
+testIncluded_NoModule()
+{
+	assertTrue "Didn't include repo" "__included repo3"
+}
+
+testIncluded_ModuleIncluded()
+{
+	assertTrue "Didn't include repo" "__included repo4"
+}
+
+testIncluded_ModuleNotIncluded()
+{
+	assertFalse "Did include repo" "__included repo5"
+}
+
+testIncluded_InvisibleModule()
+{
+	assertTrue "Didn't include invisible module" "__included repo7"
+}
+
+testIncluded_NotIncludedInvisibleModule()
+{
+	assertFalse "Did include unincluded invisible module" "__included repo6"
+}
+
+testIsVisible_Visible()
+{
+	assertTrue "Repo wasn't detected as being visible" "__isVisible repo5"
+}
+
+testIsVisible_NoSubmodule()
+{
+	assertTrue "Repo wasn't detected as being visible" "__isVisible repo3"
+}
+
+testIsVisible_Invisible()
+{
+	assertFalse "Repo was detected as being visible" "__isVisible repo6"
+}
+
+testInitSubmodule_Default()
+{
+	assertFalse "Wrong default value" "__isInitSubmodule repo6"
+}
+
+testInitSubmodule_InitTrue()
+{
+	assertTrue "__isInitSubmodule repo4"
+}
+
+testInitSubmodule_InitFalse()
+{
+	assertFalse "__isInitSubmodule repo5"
 }
 
 . shunit2/src/shunit2

@@ -73,15 +73,46 @@ getfwmetadir()
 	done
 }
 
+__repo-config()
+{
+	git config -f "$REPOCONFIG" "$@";
+}
+
+# Returns true if repo $1 is a module
+__isModule()
+{
+	[ "$(__repo-config --bool --get "repo.$1.isModule")" = "true" ]
+}
+
+# Returns true if repo $1 is included because it is a submodule with repo.$1.included == "true",
+# or $1 is not a submodule.
+__included()
+{
+	! __isModule "$1" || [ "$(__repo-config --bool --get "repo.$1.include")" = "true" ]
+}
+
+# Returns true if repo $1 is visible
+__isVisible()
+{
+	! [ "$(__repo-config --bool --get "repo.$1.visible")" = "false" ]
+}
+
+# Returns true if repo $1 should be initialized.
+__isInitSubmodule()
+{
+	[ "$(__repo-config --bool --get "repo.$1.init")" = "true" ]
+}
+
 # gets all repos listed in repodefs.sh
 getAllRepos()
 {
-	local allrepos repo
+	local allrepos=() repo
 
-	allrepos=()
-	for repo in $(git config -f "$REPOCONFIG" --get-regexp 'repo\..*\.path' | cut --delimiter=. --fields=2 | grep -v "^${FWMETAREPO}\$")
+	for repo in $(__repo-config --get-regexp 'repo\..*\.path' | cut --delimiter=. --fields=2 | grep -v "^${FWMETAREPO}\$")
 	do
-		allrepos+=("$repo")
+		if __included $repo && __isVisible $repo || [ "$1" = "--include-all" ]; then
+			allrepos+=("$repo")
+		fi
 	done
 	echo "${allrepos[@]}"
 }
@@ -89,11 +120,10 @@ getAllRepos()
 # gets all repos suitable for the current platform
 getAllReposForPlatform()
 {
-	local allrepos repo
-	allrepos=()
-	for repo in $(git config -f "$REPOCONFIG" --get-regexp 'repo\..*\.path' | cut --delimiter=. --fields=2 | grep -v "^${FWMETAREPO}\$")
+	local allrepos=() repo
+	for repo in $(getAllRepos "$@")
 	do
-		repoplatform=$(git config -f "$REPOCONFIG" --get "repo.$repo.platform")
+		repoplatform=$(__repo-config --get "repo.$repo.platform")
 		if [ -z "$repoplatform" ] || [ "$repoplatform" = "$(platform)" ]; then
 			allrepos+=("$repo")
 		fi
@@ -104,17 +134,17 @@ getAllReposForPlatform()
 # gets the path for repo $1
 getDirForRepo()
 {
-	git config -f "$REPOCONFIG" --get "repo.$1.path"
+	__repo-config --get "repo.$1.path"
 }
 
 # gets the URL for repo $1
 getUrlForRepo()
 {
-	url=$(git config -f "$REPOCONFIG" --get "repo.$1.url")
+	url=$(__repo-config --get "repo.$1.url")
 	if [ -n "$url" ]; then
 		echo "$url"
 	else
-		url=$(git config -f "$REPOCONFIG" --get repo.defaulturl)
+		url=$(__repo-config --get repo.defaulturl)
 		echo "$url/$1.git"
 	fi
 }
