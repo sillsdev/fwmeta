@@ -156,19 +156,60 @@ clonerepo()
 # $3 top level directory that contains $TOOLSDIR subdirectory
 initrepo()
 {
-	local repo loc basedir
+	local repo loc basedir parent parentDir cwd locRelative initialized
 
 	repo=$1
 	loc="$2"
 	basedir="$3"
 
-	echo
-	echo -e "${_bold}Initializing project $repo${_normal}"
-	debug "basedir in initrepo=$basedir"
-
 	cwd=$(pwd)
+	initialized=false
 
-	clonerepo $repo "$loc"
+	debug "Processing $repo"
+
+	if ! repolistIncludes "$repo" && __isVisible $repo; then
+		debug "$repo not included in repolist from user, skipping"
+		return 0
+	fi
+
+	if __isModule $repo ; then
+		parent=$(getParentRepo $repo)
+		parentDir=$(getDirForRepo $parent)
+		if repolistIncludes "$parent" || [ "$parent" = "$FWMETAREPO" ]; then
+			# parent is included in list, so initialize this repo as submodule
+			cd $parentDir
+			locRelative=${loc#$parentDir/}
+			debug "Initializing submodule $repo in $locRelative"
+			if [ -d "${loc}/.git" ]; then
+				echo -e "${_bold}Updating submodule $repo${_normal}"
+			else
+				echo -e "${_bold}Initializing submodule $repo${_normal}"
+			fi
+			git submodule init $locRelative
+			git submodule update
+			initialized=true
+			cd "$cwd"
+			if ! __isInitSubmodule "$repo"; then
+				initializedRepos+=" $repo"
+				return 0
+			fi
+		#else
+			# parent is not included in repolist, so just continue and initialize this
+			# submodule as a regular repo.
+		fi
+	fi
+
+	if [ "$initialized" = "false" ]; then
+		echo
+		if [ -d "${loc}/.git" ]; then
+			echo -e "${_bold}Updating project $repo${_normal}"
+		else
+			echo -e "${_bold}Initializing project $repo${_normal}"
+		fi
+		debug "basedir in initrepo=$basedir"
+
+		clonerepo $repo "$loc"
+	fi
 
 	# update settings for whitespace checking. If it's necessary to change the behavior for
 	# certain file types we can add a line to .gitattributes, e.g.
@@ -187,7 +228,9 @@ initrepo()
 	git config branch.autosetuprebase always
 
 	# install hooks
-	if [ "$reset" = "1" -o ! -f .git/hooks/commit-msg -o ! -f .git/hooks/commit-msg1_add-change-id ]; then
+	# Note that we can't do this if we're running unit tests because it requires a gerrit user
+	# account which we might not have on build agents.
+	if [ "$reset" = "1" -o ! -f .git/hooks/commit-msg -o ! -f .git/hooks/commit-msg1_add-change-id ] && [ ! $unittesting ]; then
 		echo "Installing hooks:"
 		if [ \( "$reset" = "1" -a "$repo" = "fwmeta" \) -o ! -f "$basedir/.git/hooks/commit-msg1_add-change-id" ]; then
 			# This is fwmeta repo. Get hook directly from Gerrit server
@@ -318,9 +361,45 @@ initrepo()
 		git config fwinit.aliasversion "$THISALIASVERSION"
 	fi
 	cd "$cwd"
+	initializedRepos+=" $repo"
 }
 
-basedir="$(getfwmetadirBootStrap)"
+initReposFromList()
+{
+	for repo in $repolist; do
+		if ! __isModule "$repo" && ! initializedReposIncludes "$repo"; then
+			initrepo "$repo" "$(getDirForRepo $repo)" "$basedir"
+		fi
+	done
+}
+
+initSubmodulesFromList()
+{
+	for repo in $repolist; do
+		if __isModule "$repo" && ! initializedReposIncludes "$repo"; then
+			initrepo "$repo" "$(getDirForRepo $repo)" "$basedir"
+		fi
+	done
+}
+
+initInvisibleSubmodules()
+{
+	debug "\n\nProcessing invisible submodules:"
+	for repo in $(getAllReposForPlatform --include-all); do
+		if ! __isVisible "$repo" && ! initializedReposIncludes "$repo"; then
+			initrepo "$repo" "$(getDirForRepo $repo)" "$basedir"
+		fi
+	done
+}
+
+initAllRepos()
+{
+	initReposFromList
+	initSubmodulesFromList
+	initInvisibleSubmodules
+}
+
+basedir="${basedir:-$(getfwmetadirBootStrap)}"
 # On Windows we want to use getopt in our directory since the other one
 # is broken
 if [ "$OSTYPE" = "msys" ]; then
@@ -330,7 +409,8 @@ else
 fi
 
 ORIG_ARGS=("$@")
-OPTS=$($GETOPT -o hvrm --long help --long debug --long recursive --long reset --long modify  --long version --long basedir: -n "$(basename "$0")" -- "$@")
+OPTS=$($GETOPT -o hvrm --long help --long debug --long recursive --long reset --long modify \
+	--long version --long basedir: --long running-tests -n "$(basename "$0")" -- "$@")
 
 eval set -- "$OPTS"
 
@@ -343,6 +423,7 @@ while true ; do
 		-r|--reset) reset=1 ;;
 		-m|--modify) modify=1 ;;
 		--basedir) basedir=$2 ; shift ;;
+		--running-tests) return 0;;
 		--) shift; break;;
 		*) echo "Internal error: Unknown argument: $1" ; exit 1 ;;
 	esac
@@ -504,8 +585,7 @@ if [ -z "$branchlist" ]; then
 	git config fwinit.branchlist "$branchlist"
 fi
 
+initializedRepos=""
 initrepo $FWMETAREPO . "$basedir"
 
-for repo in $repolist; do
-	initrepo "$repo" "$(getDirForRepo $repo)" "$basedir"
-done
+initAllRepos

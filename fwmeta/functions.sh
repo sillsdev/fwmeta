@@ -137,6 +137,21 @@ getDirForRepo()
 	__repo-config --get "repo.$1.path"
 }
 
+# Finds the repo that gets cloned into $1
+getRepoForDir()
+{
+	for repo in $(getAllRepos); do
+		if [ "$(__repo-config --get "repo.${repo}.path")" = "$1" ]; then
+			echo $repo
+			return
+		fi
+	done
+
+	if [ "$1" = "$(__repo-config --get "repo.${FWMETAREPO}.path")" ]; then
+		echo "${FWMETAREPO}"
+	fi
+}
+
 # gets the URL for repo $1
 getUrlForRepo()
 {
@@ -191,9 +206,9 @@ getParentBranch()
 
 	curBranch="$1"
 
-	if git config branch.${curBranch}.merge > /dev/null; then
-		parent=$(git config branch.${curBranch}.merge)
-		parent=${parent#refs/heads/}
+	if git config "branch.${curBranch}.merge" > /dev/null; then
+		parent="$(git config "branch.${curBranch}.merge")"
+		parent="${parent#refs/heads/}"
 	else
 		case "$curBranch" in
 			$(git config gitflow.prefix.feature)*)
@@ -225,6 +240,41 @@ mktempdir()
 	tmpdir="${TMP-/tmp}/fwmeta-$$"
 	mkdir -p "$tmpdir"
 	echo "$tmpdir"
+}
+
+# Find the parent repo for submodule $1
+getParentRepo()
+{
+	local parent repo
+	if ! __isModule "$1"; then
+		echo "$1"
+	else
+		parent="$(getDirForRepo "$1")"
+		repo=""
+		while [ -z $repo ]; do
+			parent="$(dirname "$parent")"
+			repo="$(getRepoForDir "$parent")"
+		done
+		echo "$repo"
+	fi
+}
+
+# Returns true if $1 includes $2
+__listIncludes()
+{
+	echo "$1" | grep -q -E "(^| )$2( |$)"
+}
+
+# Returns true if $repolist includes $1
+repolistIncludes()
+{
+	__listIncludes "$repolist" "$@"
+}
+
+# Returns true if $initializedRepos includes $1
+initializedReposIncludes()
+{
+	__listIncludes "$initializedRepos" "$@"
 }
 
 # define colors (we can't use $(tput bold) because tput isn't installed on Windows by default)

@@ -2,6 +2,7 @@
 # pull 
 
 # function copied from https://github.com/git/git/blob/master/git-sh-setup.sh
+# see also http://stackoverflow.com/a/2659808
 require_clean_work_tree () {
 	git rev-parse --verify HEAD >/dev/null || exit 1
 	git update-index -q --ignore-submodules --refresh

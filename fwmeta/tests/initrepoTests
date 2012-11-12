@@ -1,0 +1,222 @@
+#!/bin/bash
+# Unit tests for initrepo
+
+createSubRepo()
+{
+	number=$1
+	git init -q --bare sub${number}.git
+	cd sub${number}.git
+	git fast-import --quiet <<-EOF
+	blob
+	mark :1
+	data 0
+
+	reset refs/heads/master
+	commit refs/heads/master
+	mark :2
+	author John Doe <john@example.com> 1351674275 +0100
+	committer John Doe <john@example.com> 1351674275 +0100
+	data 15
+	Initial commit
+	M 100644 :1 file${number}
+
+	commit refs/heads/master
+	mark :3
+	author John Doe <john@example.com> 1351674275 +0100
+	committer John Doe <john@example.com> 1351674275 +0100
+	data 14
+	Second commit
+	from :2
+	M 100644 :1 otherFile${number}
+
+	reset refs/heads/develop
+	from :3
+EOF
+
+	cd ..
+}
+
+createMaster()
+{
+	git init -q --bare master.git
+	cd master.git
+	git fast-import --quiet <<-EOF
+	blob
+	mark :1
+	data 0
+
+	blob
+	mark :2
+	data <<EOD
+	[submodule "sub1"]
+		path = dir1
+		url = file://$tmpdir/sub1.git
+	[submodule "sub2"]
+		path = dir2
+		url = file://$tmpdir/sub2.git
+	EOD
+
+	reset refs/heads/master
+	commit refs/heads/master
+	mark :3
+	author John Doe <john@example.com> 1351674275 +0100
+	committer John Doe <john@example.com> 1351674275 +0100
+	data 15
+	Initial commit
+	M 100644 :1 masterfile
+	M 100644 :2 .gitmodules
+	M 160000 $sub1sha dir1
+	M 160000 $sub2sha dir2
+
+	reset refs/heads/develop
+	from :3
+EOF
+	cd ..
+}
+
+oneTimeSetUp()
+{
+	basedir=$(pwd)/../..
+	. ../initrepo --running-tests
+	. ../functions.sh
+	set +e
+
+	dir=$(pwd)
+	tmpdir=$(mktempdir)
+	basedir=$tmpdir
+	unittesting=1
+
+	cd $tmpdir
+	# Create two repos with two commits each
+	createSubRepo 1
+	sub1sha=$(GIT_DIR=sub1.git git rev-parse master^)
+
+	createSubRepo 2
+	sub2sha=$(GIT_DIR=sub2.git git rev-parse master^)
+
+	# Create the master repo that contains the two repos as submodules
+	createMaster
+
+	cat > submodTest.config <<-EOF
+	[repo]
+		defaulturl = $tmpdir
+	[repo "master"]
+		path = master
+	[repo "sub1"]
+		path = master/dir1
+		isModule = true
+		include = true
+	[repo "sub2"]
+		path = master/dir2
+		isModule = true
+		include = false
+EOF
+
+	cat > submodTest2.config <<-EOF
+	[repo]
+		defaulturl = $tmpdir
+	[repo "master"]
+		path = master
+	[repo "sub1"]
+		path = master/dir1
+		isModule = true
+		include = true
+		visible = false
+EOF
+	cd $dir
+}
+
+oneTimeTearDown()
+{
+	cd $HOME
+	rm -rf $tmpdir
+}
+
+setUp()
+{
+	initializedRepos=""
+	REPOCONFIG="$tmpdir/submodTest.config"
+}
+
+tearDown()
+{
+	rm -rf $tmpdir/master
+}
+
+testInitAllRepos_IncludedSubs()
+{
+	cd $tmpdir
+	repolist="master sub1"
+	branchlist="master develop"
+	initAllRepos 2&> /dev/null
+
+	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
+	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
+	assertFalse "Did fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
+}
+
+testInitAllRepos_ReverseOrder()
+{
+	cd $tmpdir
+	repolist="sub1 master"
+	branchlist="master develop"
+	initAllRepos 2&> /dev/null
+
+	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
+	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
+	assertFalse "Did fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
+}
+
+testInitAllRepos_ParentExcluded()
+{
+	cd $tmpdir
+	repolist="sub1"
+	branchlist="master develop"
+	initAllRepos 2&> /dev/null
+
+	assertFalse "Fetched excluded master repo" "[ -d "$tmpdir/master/.git" ]"
+	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
+	assertTrue "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
+	assertFalse "Did fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
+}
+
+testInitAllRepos_AllSubs()
+{
+	cd $tmpdir
+	repolist="master sub1 sub2"
+	branchlist="master develop"
+	initAllRepos 2&> /dev/null
+
+	assertTrue "Didn't fetch master repo" "[ -d "$tmpdir/master/.git" ]"
+	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
+	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
+	assertTrue "Didn't fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
+}
+
+testInitInvisibleSubmodules_SubNotSpecified()
+{
+	cd $tmpdir
+	repolist="master"
+	branchlist="master develop"
+	REPOCONFIG="$tmpdir/submodTest2.config"
+	initAllRepos 2&> /dev/null
+
+	assertTrue "Didn't fetch master repo" "[ -d "$tmpdir/master/.git" ]"
+	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
+	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
+}
+
+testInitInvisibleSubmodules_SubSpecified()
+{
+	cd $tmpdir
+	repolist="master sub1"
+	branchlist="master develop"
+	REPOCONFIG="$tmpdir/submodTest2.config"
+	initAllRepos 2&> /dev/null
+
+	assertTrue "Didn't fetch master repo" "[ -d "$tmpdir/master/.git" ]"
+	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
+	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
+}
+
+. shunit2/src/shunit2

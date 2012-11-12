@@ -99,4 +99,29 @@ testInitSubmodule_InitFalse()
 	assertFalse "__isInitSubmodule repo5"
 }
 
+testGetParentRepo_Submodule()
+{
+	assertEquals "Found wrong parent repo" "repo4" "$(getParentRepo "repo7")"
+}
+
+testGetParentRepo_NoModule()
+{
+	assertEquals "Found wrong parent repo" "repo3" "$(getParentRepo "repo3")"
+}
+
+testGetRepoForDir()
+{
+	assertEquals "Didn't find repo for directory" "repo4" "$(getRepoForDir "dir1/dir4")"
+}
+
+testGetRepoForDir_FwMeta()
+{
+	assertEquals "Didn't find repo for directory" "xyz" "$(getRepoForDir ".")"
+}
+
+testGetRepoForDir_NonExisting()
+{
+	assertNull "Found a repo for directory outside of any repo" "$(getRepoForDir /tmp)"
+}
+
 . shunit2/src/shunit2
