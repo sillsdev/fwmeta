@@ -79,7 +79,7 @@ addHistory()
 	if ! git remote | grep -q antique; then
 		git remote add antique git://$GERRIT/$repo-antique.git
 	fi
-	if [ -n $ALTERNATE_URL ]; then
+	if [ -n "$ALTERNATE_URL" ]; then
 		if [ $(git ls-remote $ALTERNATE_URL/${repo}-antique.git refs/notes/git-p4 2>/dev/null | wc -l) -gt 0 ]; then
 			debug "Fetching git-p4 notes from $ALTERNATE_URL/${repo}-antique.git"
 			git fetch $ALTERNATE_URL/${repo}-antique.git refs/notes/git-p4:refs/notes/git-p4-antique
@@ -96,14 +96,14 @@ addHistory()
 
 		if ! git branch -r | grep -q "antique/${branch}$"; then
 			if [ $(git ls-remote antique $branch | wc -l) -gt 0 ]; then
-				if [ -n $ALTERNATE_URL ]; then
+				if [ -n "$ALTERNATE_URL" ]; then
 					if [ $(git ls-remote $ALTERNATE_URL/${repo}-antique.git $branch 2>/dev/null | wc -l) -gt 0 ]; then
 						debug "Fetching $branch from $ALTERNATE_URL/${repo}-antique.git"
 						git fetch $ALTERNATE_URL/${repo}-antique.git refs/heads/$branch:refs/remotes/antique/$branch
 					fi
 				fi
 				debug "Fetching $branch from antique"
-				git fetch antique $branch
+				git fetch antique refs/heads/$branch:refs/remotes/antique/$branch
 				for sha in $(git rev-list --max-parents=0 origin/$branch); do
 					git replace $sha antique/$branch
 				done
