@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>Using a repo mirror on DVD</title>
+    <meta http-equiv="content-type" content="text/html; charset=us-ascii" />
+    <meta content="text/html; charset=us-ascii" http-equiv="Content-Type" />
+    <style type="text/css">
+      pre {
+        margin-left: 1.5em;
+        width: 70em;
+        padding: 2pt;
+        background-color: #f0f8ff;
+        border: 1px dashed #88aacc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Using a repo mirror on DVD</h1>
+    <p>To use a mirror on DVD created by <tt>create-mirror</tt>:</p>
+    <ol>
+      <li>
+        <p>Insert it in your computer and note the path at which it mounts (probably
+            <tt>D:</tt> on Windows or <tt>/media/gerrit.lsdev.sil.org</tt> on Linux).
+            I'll call this <i>MOUNTPOINT</i>.</p>
+      </li>
+      <li>
+        <p>Run the following command in a terminal:</p>
+        <pre>git config --global url.file://<i>MOUNTPOINT</i>/.insteadOf git://github.com/sillsdev/</pre>
+        <p>If <i>MOUNTPOINT</i> was <tt>/media/gerrit.lsdev.sil.org</tt>, for example, you would use:</p>
+        <pre>git config --global url.file:///media/gerrit.lsdev.sil.org/.insteadOf git://github.com/sillsdev/</pre>
+        <p>If <i>MOUNTPOINT</i> was <tt>D:</tt>, for example, you would use:</p>
+        <pre>git config --global url.file:///d/.insteadOf git://github.com/sillsdev/</pre>
+        <p>Note the <b>three</b> slashes after <tt>file:</tt></p>
+        <p>Also note that git doesn't see newly-inserted drives until you close all git windows.</p>
+      </li>
+      <li>
+        <p>Follow the <q>Getting Started</q> instructions, which are:</p>
+        <pre>
+git clone git://github.com/sillsdev/fwmeta.git fwrepo
+cd fwrepo
+fwmeta/initrepo</pre>
+      </li>
+      <li>
+        <p>Because of the <tt>insteadOf</tt> configuration setting, this will clone from the DVD
+          instead of github. So when the cloning is finished, you need to remove that
+          setting:</p>
+        <pre>git config --global --unset url.file:///media/gerrit.lsdev.sil.org/.insteadOf</pre>
+      </li>
+      <li>
+        <p>Make sure you can now pull from github:</p>
+        <pre>
+cd fw
+git pull</pre>
+      </li>
+    </ol>
+    <p>You should now be able to use <tt>git gui</tt> and follow the rest of the usual instructions.</p>
+  </body>
+</html>
