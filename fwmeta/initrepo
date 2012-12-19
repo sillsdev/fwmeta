@@ -11,7 +11,7 @@ TOOLSDIR=fwmeta
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=8
+THISALIASVERSION=9
 
 # Display help
 help()
@@ -332,7 +332,7 @@ initrepo()
 
 		git config guitool.2_Hotfix/0_Start.cmd 'git flow hotfix start $ARGS'
 		git config guitool.2_Hotfix/0_Start.argprompt "Name of the fixed version"
-		git config "guitool.2_Hotfix/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/master/$CUR_BRANCH'
+		git config "guitool.2_Hotfix/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/$CUR_BRANCH'
 		git config guitool.2_Hotfix/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git hotfin ${CUR_BRANCH#*/}'
 
 		git config guitool.3_Support/0_Start.cmd 'git flow support start $ARGS'
@@ -463,7 +463,7 @@ if [ ! $RECURSIVE ]; then
 		if [ -d ".git" ] && git remote | grep -q origin ; then
 			git fetch origin
 			# see http://stackoverflow.com/a/2659808
-			if ! git diff-index --quiet HEAD ; then
+			if __isDirty ; then
 				echo "WARNING: You have a dirty working directory - not updating $FWMETAREPO"
 			else
 				# fwmeta repo exists. Let's see if we're on a branch

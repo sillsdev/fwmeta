@@ -103,6 +103,13 @@ __isInitSubmodule()
 	[ "$(__repo-config --bool --get "repo.$1.init")" = "true" ]
 }
 
+# Returns true if repo has uncommitted changes
+__isDirty()
+{
+	# see http://stackoverflow.com/a/2659808
+	! git diff-index --quiet HEAD
+}
+
 # gets all repos listed in repodefs.sh
 getAllRepos()
 {

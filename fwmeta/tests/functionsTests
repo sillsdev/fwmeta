@@ -28,6 +28,13 @@ oneTimeTearDown()
 	rm -rf $tmpdir
 }
 
+tearDown()
+{
+	cd $tmpdir/functionTests
+	git reset --hard -q
+	cd $dir
+}
+
 testCurrentBranch_develop()
 {
 	cd $tmpdir/functionTests
@@ -57,6 +64,21 @@ testCurrentCommit_NoBranch()
 	cd $tmpdir/functionTests
 	git checkout -q develop^
 	assertEquals "Didn't detect correct commit." "develop~1" "$(currentCommit)"
+	cd $dir
+}
+
+testIsDirty_Clean()
+{
+	cd $tmpdir/functionTests
+	assertFalse "Didn't detect that working directory is clean"  "__isDirty"
+	cd $dir
+}
+
+testIsDirty_Dirty()
+{
+	cd $tmpdir/functionTests
+	touch testIsDirty.txt && git add testIsDirty.txt
+	assertTrue "Didn't detect that working directory is dirty" "__isDirty"
 	cd $dir
 }
 
