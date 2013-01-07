@@ -228,13 +228,23 @@ initrepo()
 	git config branch.autosetuprebase always
 
 	# install hooks
-	# Note that we can't do this if we're running unit tests because it requires a gerrit user
-	# account which we might not have on build agents.
-	if [ "$reset" = "1" -o ! -f .git/hooks/commit-msg -o ! -f .git/hooks/commit-msg1_add-change-id ] && [ ! $unittesting ]; then
+	if [ "$reset" = "1" -o ! -f .git/hooks/commit-msg -o ! -f .git/hooks/commit-msg1_add-change-id ]; then
 		echo "Installing hooks:"
 		if [ \( "$reset" = "1" -a "$repo" = "fwmeta" \) -o ! -f "$basedir/.git/hooks/commit-msg1_add-change-id" ]; then
-			# This is fwmeta repo. Get hook directly from Gerrit server
-			scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks/commit-msg1_add-change-id
+			# This is fwmeta repo. Get hook directly from Gerrit server.
+			# Check if curl exists; if not try wget, otherwise use scp which requires a Gerrit
+			# username
+			if hash curl 2>/dev/null; then
+				debug "Getting hook: curl -o .git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg"
+				curl -o .git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg
+			elif hash wget 2>/dev/null; then
+				debug "Getting hook: wget --output-document=.git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg"
+				wget --output-document=.git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg
+			else
+				debug "Getting hook: scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg".git/hooks/commit-msg1_add-change-id"
+				scp -p -P $GERRITPORT "$gerritusername@$GERRIT:hooks/commit-msg" .git/hooks/commit-msg1_add-change-id
+			fi
+			chmod +x .git/hooks/commit-msg1_add-change-id
 		else
 			# Other FW repos. Get hook from fwmeta.
 			cp "$basedir/.git/hooks/commit-msg1_add-change-id" .git/hooks/
