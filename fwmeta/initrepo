@@ -442,6 +442,8 @@ tmpdir=${TMPDIR-/tmp}/fwmeta-$$
 SRC="$0"
 DST="$tmpdir/$(basename "$0")"
 
+. "$basedir/$TOOLSDIR/functions.sh"
+
 cd "$basedir"
 if [ ! $RECURSIVE ]; then
 	branchlist="$defaultbranches"
@@ -489,8 +491,7 @@ if [ ! $RECURSIVE ]; then
 	fi
 fi
 debug "Called recursively"
-
-. "$basedir/$TOOLSDIR/functions.sh"
+echo "$(basename "$0") $(git describe --dirty)"
 
 # delete temporary directory we created for the initrepo script while updating the repo
 if [ -n $tmpdir ]; then
