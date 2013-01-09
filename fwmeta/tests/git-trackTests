@@ -1,0 +1,57 @@
+#!/bin/bash
+# Unit tests for git-release-track script
+
+oneTimeSetUp()
+{
+	basedir=$(pwd)/../..
+	. ../functions.sh
+
+	dir=$(pwd)
+	tmpdir=$(mktempdir)
+	cd $tmpdir
+
+	git init -q masterRepo
+	cd masterRepo
+	git commit -q --allow-empty -m "Initial commit"
+	git branch release/123
+
+	cd ..
+	git init -q testingRepo
+	cd testingRepo
+	git remote add origin ../masterRepo
+	cd $dir
+}
+
+oneTimeTearDown()
+{
+	cd $HOME
+	rm -rf $tmpdir
+}
+
+exerciseSUT()
+{
+	cd $tmpdir/testingRepo
+	$basedir/fwmeta/git-track $@
+}
+
+testNoParameters()
+{
+	assertFalse "Didn't fail without parameter" "exerciseSUT"
+}
+
+testNonExistingBranch()
+{
+	assertFalse "Didn't fail when specifying non-existing branch" "exerciseSUT release/999"
+}
+
+testNameSpecified()
+{
+	cd $tmpdir/testingRepo
+	assertTrue "Got unexpected return value" "exerciseSUT release/123"
+	assertTrue "Didn't add remote branch to fetch" "git config --get-all remote.origin.fetch | grep -q refs/heads/release/123"
+	assertTrue "Didn't add remote branch to push" "git config --get-all remote.origin.push | grep -q refs/for/release/123"
+	assertTrue "Didn't fetch remote branch" "git branch -r | grep -q release/123"
+	assertTrue "Didn't create local release branch" "git branch | grep -q release/123"
+}
+
+. shunit2/src/shunit2

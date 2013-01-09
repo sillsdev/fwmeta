@@ -11,7 +11,7 @@ TOOLSDIR=fwmeta
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=9
+THISALIASVERSION=10
 
 # Display help
 help()
@@ -320,6 +320,7 @@ initrepo()
 		git config alias.mergepush '!sh -c "git mergetool -y && git commit && git push origin && git push origin --tags" -'
 		git config alias.globstat '!sh -c "SEDREPLACE/repostatus \$1" -'
 		git config alias.bypass '!sh -c "SEDREPLACE/bypass.sh" -'
+		git config alias.track '!sh -c "SEDREPLACE/git-track \$1" -'
 		# do this last so that we can replace multiple entries at once
 		sed "s/SEDREPLACE/$sedReplace/g" .git/config 2>&1 > .git/config2
 		mv .git/config2 .git/config
@@ -329,27 +330,31 @@ initrepo()
 		git config "guitool.0_Feature/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/develop/$CUR_BRANCH'
 		git config guitool.0_Feature/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git featfin ${CUR_BRANCH#*/}'
 		git config guitool.0_Feature/Publish.cmd 'git flow feature publish ${CUR_BRANCH#*/}'
-		git config guitool.0_Feature/Track.cmd 'git flow feature track $ARGS'
-		git config guitool.0_Feature/Track.argprompt "Name of the feature"
+		git config guitool.0_Feature/Track.cmd 'git track feature/$ARGS'
+		git config guitool.0_Feature/Track.argprompt "Name of the feature (without feature/ prefix)"
 
 		git config guitool.1_Release/0_Start.cmd 'git flow release start $ARGS'
 		git config guitool.1_Release/0_Start.argprompt "Name of the release"
 		git config "guitool.1_Release/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/$CUR_BRANCH'
 		git config guitool.1_Release/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git release ${CUR_BRANCH#*/}'
 		git config guitool.1_Release/Publish.cmd 'git flow release publish ${CUR_BRANCH#*/}'
-		git config guitool.1_Release/Track.cmd 'git flow release track $ARGS'
-		git config guitool.1_Release/Track.argprompt "Name of the release"
+		git config guitool.1_Release/Track.cmd 'git track release/$ARGS'
+		git config guitool.1_Release/Track.argprompt "Name of the release (without release/ prefix)"
 
 		git config guitool.2_Hotfix/0_Start.cmd 'git flow hotfix start $ARGS'
 		git config guitool.2_Hotfix/0_Start.argprompt "Name of the fixed version"
 		git config "guitool.2_Hotfix/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/$CUR_BRANCH'
 		git config guitool.2_Hotfix/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git hotfin ${CUR_BRANCH#*/}'
+		git config guitool.2_Hotfix/Track.cmd 'git track hotfix/$ARGS'
+		git config guitool.2_Hotfix/Track.argprompt "Name of the hotfix (without hotfix/ prefix)"
 
 		git config guitool.3_Support/0_Start.cmd 'git flow support start $ARGS'
 		git config guitool.3_Support/0_Start.argprompt "Name of the support branch and tag it is based on (e.g. '1.0 1.0')"
 		git config "guitool.3_Support/1_Submit for Code Review.cmd" 'git push origin HEAD:refs/for/$CUR_BRANCH'
 		git config guitool.3_Support/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git supfin $ARGS'
 		git config guitool.3_Support/2_Finish.argprompt "Name of the new version"
+		git config guitool.3_Support/Track.cmd 'git track support/$ARGS'
+		git config guitool.3_Support/Track.argprompt "Name of the support branch (without support/ prefix)"
 
 		git config guitool.4_Rebase/Abort.cmd 'git rebase --abort'
 		git config guitool.4_Rebase/Continue.cmd 'GIT_EDITOR=$(git config --get gui.editor) git rebase --continue'

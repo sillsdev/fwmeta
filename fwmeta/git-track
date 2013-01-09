@@ -1,0 +1,30 @@
+#!/bin/bash
+# Track a branch by adding the fetch/push lines to the config file, fetching the remote branch
+# and creating a local branch.
+# Arguments:
+# $1 - name of remote branch (e.g. release/7.3.0)
+
+if [ $# -lt 1 ]; then
+	echo "ERROR: Wrong number of parameters"
+	exit 1
+fi
+
+set -e
+
+TOOLSDIR=fwmeta
+. "$(dirname $0)/functions.sh"
+
+origin=$(git config --get gitflow.origin || echo origin)
+
+branch=$1
+
+if [ $(git ls-remote $origin refs/heads/$branch | wc -l) -gt 0 ]; then
+	# don't add fetch/push more than once for same branch
+	git config --get remote.$origin.fetch $branch || git config --add remote.$origin.fetch "+refs/heads/$branch:refs/remotes/$origin/$branch"
+	git config --get remote.$origin.push $branch || git config --add remote.$origin.push "+refs/heads/$branch:refs/for/$branch"
+	git fetch origin "refs/heads/$branch:refs/remotes/$origin/$branch"
+	git checkout $branch
+else
+	echo "ERROR: Remote branch $branch doesn't exist"
+	exit 1
+fi
