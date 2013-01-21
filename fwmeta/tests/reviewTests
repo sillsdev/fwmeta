@@ -1,0 +1,132 @@
+#!/bin/bash
+# Unit tests for review.sh script
+
+oneTimeSetUp()
+{
+	basedir=$(pwd)/../..
+	. ../functions.sh
+
+	dir=$(pwd)
+	tmpdir=$(mktempdir)
+	cd $tmpdir
+
+	initializeRepos 2&> /dev/null
+
+	cd $dir
+	SUT=$basedir/fwmeta/review.sh
+}
+
+# Creates branch $1 based on $2
+createBranch()
+{
+	git branch --track $1 $2 &> /dev/null
+	git push -q origin $1 &>/dev/null
+}
+
+initializeRepos()
+{
+	git init -q --bare bareRepo
+	git clone -q bareRepo masterRepo &>/dev/null
+	cd masterRepo
+	git config push.default current
+	git commit -q --allow-empty -m "Initial commit"
+	git push -q --set-upstream origin master &> /dev/null
+	git checkout -q -b develop
+	git commit -q --allow-empty -m "Commit on develop"
+	git push -q --set-upstream origin develop &>/dev/null
+	git checkout -q -b release/123 master
+	git commit -q --allow-empty -m "Commit on release/123"
+	git push -q --set-upstream origin release/123 &>/dev/null
+	git checkout -q -b feature/123 develop
+	git commit -q --allow-empty -m "Commit on feature/123"
+	git push -q --set-upstream origin feature/123 &>/dev/null
+
+	cd ..
+	git clone -q bareRepo workRepo
+	cd workRepo
+	git checkout -q develop &>/dev/null
+	createBranch "feature/XYZ" develop
+	git checkout -q "feature/XYZ"
+	git commit -q --allow-empty -m "Commit on feature/XYZ"
+
+	git checkout -q release/123 &> /dev/null
+	createBranch "feature/ABC" "release/123"
+	git checkout -q "feature/ABC"
+	git commit -q --allow-empty -m "Commit on feature/ABC"
+
+	git checkout -q feature/123 &> /dev/null
+	createBranch "feature/def" "feature/123"
+	git checkout -q "feature/def"
+	git commit -q --allow-empty -m "Commit on feature/def"
+}
+
+oneTimeTearDown()
+{
+	cd $HOME
+	rm -rf $tmpdir
+}
+
+tearDown()
+{
+	cd $tmpdir
+	rm -rf masterRepo/.git/refs/for/
+}
+
+exerciseSUT()
+{
+	$SUT --quiet "$@"
+}
+
+testReviewReleaseFeature()
+{
+	cd $tmpdir/workRepo
+	git checkout -q "feature/ABC"
+	assertTrue "Failed on release feature" "exerciseSUT"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/release/123/ABC ]"
+}
+
+testExplicitTargetBranch()
+{
+	cd $tmpdir/workRepo
+	git checkout -q "feature/ABC"
+	assertTrue "Failed with explicit target branch" "exerciseSUT xyz"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/xyz ]"
+}
+
+testExplicitTargetBranchAndTopic()
+{
+	cd $tmpdir/workRepo
+	git checkout -q "feature/ABC"
+	assertTrue "Failed with explicit target branch and different topic" "exerciseSUT def ghi"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/def/ghi ]"
+}
+
+testNormalFeature()
+{
+	cd $tmpdir/workRepo
+	git checkout -q feature/XYZ
+	assertTrue "Failed on normal feature" "exerciseSUT"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/develop/XYZ ]"
+}
+
+testNormalFeatureOnLongLivedBranch()
+{
+	cd $tmpdir/workRepo
+	git checkout -q "feature/def"
+	assertTrue "Failed on normal feature" "exerciseSUT"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/feature/123/def ]"
+}
+
+testDetachedHead()
+{
+	cd $tmpdir/workRepo
+	git checkout -q feature/XYZ
+	git commit -q --allow-empty -m "First commit"
+	git commit -q --allow-empty -m "Second commit"
+	git checkout -q HEAD^
+
+	assertTrue "Failed on normal feature" "exerciseSUT"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/develop/XYZ ]"
+}
+
+. shunit2/src/shunit2
