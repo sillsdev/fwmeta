@@ -137,7 +137,7 @@ clonerepo()
 	done
 	git fetch origin
 
-	# we need the master and develop branches so that we can successfully initialize git-flow
+	# we need the master and develop branches
 	if ! git branch | grep -q master; then
 		git checkout -q master
 	fi
@@ -260,9 +260,15 @@ initrepo()
 		chmod -w .git/hooks/commit-msg
 	fi
 
-	# Initialize git flow
+	# Set gitflow options. We no longer require git-flow to be installed since our scripts
+	# manage everything, but we still use the variables.
 	if ! git config --get gitflow.branch.master &>/dev/null || [ "$reset" = "1" ]; then
-		git flow init -d -f
+		git config gitflow.branch.master master
+		git config gitflow.branch.develop develop
+		git config gitflow.prefix.feature feature/
+		git config gitflow.prefix.release release/
+		git config gitflow.prefix.hotfix hotfix/
+		git config gitflow.prefix.support support/
 	fi
 
 	if [ "$(git config --get fwinit.aliasversion)" != "$THISALIASVERSION"  -o "$reset" = "1" ]; then
@@ -547,11 +553,6 @@ if [ -n $tmpdir ]; then
 fi
 
 # Sanity checks
-if ! git flow version &>/dev/null; then
-	echo "Can't find git-flow. Please install."
-	exit 1
-fi
-
 gerritusername=$(git config --get fwinit.gerrituser) || true
 username=$(git config --get user.name) || true
 useremail=$(git config --get user.email) || true
