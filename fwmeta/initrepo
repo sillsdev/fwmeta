@@ -8,7 +8,7 @@ set -e
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=15
+THISALIASVERSION=16
 
 # Display help
 help()
@@ -330,6 +330,11 @@ initrepo()
 			git config --unset guitool.0_Feature/Publish.cmd 2> /dev/null || true
 			git config --unset guitool.1_Release/Publish.cmd 2> /dev/null || true
 		fi
+		if [ "$(git config --get fwinit.aliasversion || echo -1)" -lt "16" -o "$reset" = "1" ]; then
+			git config --remove_section "guitool.3_Support/0_Start Bugfix" 2> /dev/null || true
+			git config --remove_section "guitool.3_Support/1_Submit for Code Review" 2> /dev/null || true
+			git config --remove_section "guitool.3_Support/2_Finish Bugfix" 2> /dev/null || true
+		fi
 
 		sedReplace="$basedir/$TOOLSDIR"
 		sedReplace=${sedReplace//\//\\\/} # replace all / with \/
@@ -382,12 +387,8 @@ initrepo()
 		git config guitool.2_Hotfix/Track.cmd 'git track hotfix/$ARGS'
 		git config guitool.2_Hotfix/Track.argprompt "Name of the hotfix (without hotfix/ prefix)"
 
-		git config "guitool.3_Support/0_Start Bugfix.cmd" 'git start task support $ARGS $CUR_BRANCH'
-		git config "guitool.3_Support/0_Start Bugfix.argprompt" "Bugfix name (JIRA number)"
-		git config "guitool.3_Support/1_Submit for Code Review.cmd" 'git review'
-		git config "guitool.3_Support/2_Finish Bugfix.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git finish task'
 		git config guitool.3_Support/Create.cmd 'git start support $ARGS'
-		git config guitool.3_Support/Create.argprompt "Name of the upcoming support release"
+		git config guitool.3_Support/Create.argprompt "Name of the version this support branch is based on"
 		git config guitool.3_Support/Track.cmd 'git track support/$ARGS'
 		git config guitool.3_Support/Track.argprompt "Name of the support branch (without support/ prefix)"
 
