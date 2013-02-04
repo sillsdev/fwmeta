@@ -180,7 +180,7 @@ initrepo()
 			cd $parentDir
 			locRelative=${loc#$parentDir/}
 			debug "Initializing submodule $repo in $locRelative"
-			if [ -d "${loc}/.git" ]; then
+			if [ -d "${locRelative}/.git" ]; then
 				echo -e "${_bold}Updating submodule $repo${_normal}"
 			else
 				echo -e "${_bold}Initializing submodule $repo${_normal}"
@@ -193,8 +193,14 @@ initrepo()
 				initializedRepos+=" $repo"
 				return 0
 			fi
-		#else
-			# parent is not included in repolist, so just continue and initialize this
+		else
+			# parent is not included in repolist
+			if ! __isInitSubmodule "$repo"; then
+				# we're told not to initialize this repo. This means we're not doing any
+				# development in this repo, so we just skip it.
+				return 0
+			fi
+			# We're told to initialize this repo, so just continue and initialize this
 			# submodule as a regular repo.
 		fi
 	fi
@@ -401,7 +407,7 @@ initInvisibleSubmodules()
 {
 	debug "\n\nProcessing invisible submodules:"
 	for repo in $(getAllReposForPlatform --include-all); do
-		if ! __isVisible "$repo" && ! initializedReposIncludes "$repo"; then
+		if ! __isVisible "$repo" && __included "$repo" && ! initializedReposIncludes "$repo"; then
 			initrepo "$repo" "$(getDirForRepo $repo)" "$basedir"
 		fi
 	done

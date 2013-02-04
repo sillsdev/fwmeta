@@ -106,10 +106,12 @@ oneTimeSetUp()
 		path = master/dir1
 		isModule = true
 		include = true
+		init = true
 	[repo "sub2"]
 		path = master/dir2
 		isModule = true
 		include = false
+		init = true
 EOF
 
 	cat > submodTest2.config <<-EOF
@@ -121,6 +123,11 @@ EOF
 		path = master/dir1
 		isModule = true
 		include = true
+		visible = false
+	[repo "sub2"]
+		path = master/dir2
+		isModule = true
+		include = false
 		visible = false
 EOF
 	cd $dir
@@ -152,7 +159,7 @@ testInitAllRepos_IncludedSubs()
 
 	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
 	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
-	assertFalse "Did fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
+	assertFalse "Fetched sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
 }
 
 testInitAllRepos_ReverseOrder()
@@ -164,7 +171,7 @@ testInitAllRepos_ReverseOrder()
 
 	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
 	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
-	assertFalse "Did fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
+	assertFalse "Fetched sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
 }
 
 testInitAllRepos_ParentExcluded()
@@ -177,7 +184,7 @@ testInitAllRepos_ParentExcluded()
 	assertFalse "Fetched excluded master repo" "[ -d "$tmpdir/master/.git" ]"
 	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
 	assertTrue "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
-	assertFalse "Did fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
+	assertFalse "Fetched sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
 }
 
 testInitAllRepos_AllSubs()
@@ -204,12 +211,13 @@ testInitInvisibleSubmodules_SubNotSpecified()
 	assertTrue "Didn't fetch master repo" "[ -d "$tmpdir/master/.git" ]"
 	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
 	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
+	assertFalse "Fetched sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
 }
 
 testInitInvisibleSubmodules_SubSpecified()
 {
 	cd $tmpdir
-	repolist="master sub1"
+	repolist="master sub1 sub2"
 	branchlist="master develop"
 	REPOCONFIG="$tmpdir/submodTest2.config"
 	initAllRepos 2&> /dev/null
@@ -217,6 +225,7 @@ testInitInvisibleSubmodules_SubSpecified()
 	assertTrue "Didn't fetch master repo" "[ -d "$tmpdir/master/.git" ]"
 	assertTrue "Didn't fetch sub1" "[ -f "$tmpdir/master/dir1/file1" ]"
 	assertFalse "Fetched wrong commit from sub1" "[ -f "$tmpdir/master/dir1/otherFile1" ]"
+	assertTrue "Didn't fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
 }
 
 . shunit2/src/shunit2
