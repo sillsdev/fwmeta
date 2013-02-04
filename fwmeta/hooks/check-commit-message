@@ -3,13 +3,13 @@
 #
 # Gets called by git with the name of the file that holds the commit message
 # This script checks that the commit message is formatted according to the standard:
-# - First line:      less than 62 chars and not ending with period (or if it is the only line:
-#                    less than 75 chars)
+# - First line:      no more than 62 chars and not ending with period (or if it is the
+#                    only line: no more than 70 chars)
 # - Second line:     empty
-# - Following lines: less than 75 chars
+# - Following lines: no more than 70 chars
 
 FIRSTLINE_LEN=62
-LINE_LEN=75
+LINE_LEN=70
 ERRORHEADER="[POLICY] Your commit message is not formatted correctly."
 
 OutputError()
@@ -29,10 +29,10 @@ do
 		1)
 			if [ $(cat "$1" | grep --invert-match -E "^#" | wc -l) -gt 1 ]; then
 				THIS_LINE_LEN=$FIRSTLINE_LEN
-				MSG="The first line (subject) should be less than $FIRSTLINE_LEN characters."
+				MSG="The first line (subject) should be no more than $FIRSTLINE_LEN characters."
 			else
 				THIS_LINE_LEN=$LINE_LEN
-				MSG="The first line (subject) should be less than $LINE_LEN characters if it is the only line."
+				MSG="The first line (subject) should be no more than $LINE_LEN characters if it is the only line."
 			fi
 			if [ $LEN -gt $THIS_LINE_LEN ]; then
 				OutputError "$MSG" 1
@@ -47,7 +47,7 @@ do
 			;;
 		*)
 			if [ $LEN -gt $LINE_LEN ]; then
-				OutputError "Subsequent lines (body) should be less than $LINE_LEN characters." 4
+				OutputError "Subsequent lines (body) should be no more than $LINE_LEN characters." 4
 			fi
 			;;
 	esac
