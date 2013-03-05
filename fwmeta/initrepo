@@ -453,9 +453,6 @@ done
 debug "***************\nARGS=${ORIG_ARGS[@]}"
 
 defaultbranches="master develop"
-if [ "$OSTYPE" = "linux-gnu" ]; then
-	defaultbranches+=" support/7.0-Linux"
-fi
 
 orig_dir="$(pwd)"
 debug "basedir=$basedir, originally: $orig_dir"

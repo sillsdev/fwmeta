@@ -27,6 +27,7 @@ fullname()
 	else
 		echo "$n"
 	fi
+	return 0
 }
 
 platform()
