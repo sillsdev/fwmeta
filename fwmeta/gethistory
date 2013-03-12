@@ -123,7 +123,6 @@ basedir=$(git rev-parse --show-toplevel)
 cd "$basedir"
 
 . "$basedir/$TOOLSDIR/functions.sh"
-. "$basedir/$TOOLSDIR/repodefs.sh"
 
 # On Windows we want to use getopt in our directory since the other one
 # is broken
