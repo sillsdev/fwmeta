@@ -82,4 +82,14 @@ testIsDirty_Dirty()
 	cd $dir
 }
 
+testGetParentBranch()
+{
+	cd $tmpdir/functionTests
+	git branch release/123 &>/dev/null
+	git checkout -q --track -b feature/abc release/123 &>/dev/null
+	git checkout -q develop
+	assertTrue "Failed in call to getParentBranch" "getParentBranch feature/abc"
+	assertEquals "Didn't extract parent" "release/123" "$(getParentBranch feature/abc)"
+}
+
 . shunit2/src/shunit2

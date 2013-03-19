@@ -1,0 +1,134 @@
+#!/bin/bash
+# Start a (short-lived) topic branch
+# NOTE: long lived feature branches are only supported on develop!
+# If kind is 'hotfix' and no third parameter is given we fail because there can be more than
+# one support branch. We don't fail for release because there can be only one such branch which
+# makes it nonambiguous.
+#
+# The topic branches will be named 'feature/LT-1234'. They have the parent branch set as
+# tracking branch.
+
+set -e
+
+. $(dirname $0)/functions.sh
+
+usage()
+{
+	echo "Usage:"
+	echo
+	echo "$(basename "$0") <kind> <name> [<parentbranch>]"
+	echo
+	echo "<kind>"
+	echo "    One of release|hotfix|develop. Kind of topic branch. Determines the parent"
+	echo "    branch unless one is explictly specified."
+	echo
+	echo "<name>"
+	echo "    Name of the topic branch (without prefix)."
+	echo
+	echo "<parentbranch>"
+	echo "    Optional. The name of the parent branch. If not given and <kind> is 'release' we"
+	echo "    use the current release branch as base. If <kind> is 'hotfix' we fail unless the"
+	echo "    current branch is a hotfix branch. If <kind> is 'develop' and the current branch"
+	echo "    has a corresponding remote branch we base on the current branch, otherwise we use"
+	echo "    'develop' as base."
+
+	exit $1
+}
+
+if [ $# -lt 2 ]; then
+	echo "fatal: Missing parameter."
+	usage 1
+fi
+case "$1" in
+	"release"|"hotfix"|"develop")
+		;;
+	"--help"|"-?")
+		usage 0
+		;;
+	*)
+		echo "fatal: Unknown kind: '$1'."
+		usage 1
+		;;
+esac
+
+origin=$(git config --get gitflow.origin || echo origin)
+feature=$(git config --get gitflow.prefix.feature || echo feature/)
+if [ "$1" = "develop" ]; then
+	prefix=$feature
+else
+	prefix=$(git config --get gitflow.prefix.$1 || echo $1/)
+fi
+
+if [ -n "$3" ]; then
+	basedOnBranch=$(getParentBranch "$3")
+else
+	case "$1" in
+		"hotfix")
+			# test if current branch starts with hotfix/
+			basedOnBranch=$(currentBranch)
+			if [ "${basedOnBranch#$prefix}" = "$basedOnBranch" ]; then
+				echo "fatal: Unable to determine hotfix branch. Please specify one explicitly."
+				exit 1
+			fi
+			;;
+		"develop")
+			basedOnBranch=$(currentBranch)
+			case "$basedOnBranch" in
+				${feature}*)
+					if git config branch.$basedOnBranch.merge &>/dev/null; then
+						# use tracking branch
+						basedOnBranch="$(git config branch.$basedOnBranch.merge)"
+						basedOnBranch=${basedOnBranch#refs/heads/}
+						if [ "${basedOnBranch#${feature}}" = "$basedOnBranch" ]; then
+							# we have a feature branch, but that's based on something else
+							basedOnBranch="develop"
+						fi
+					else
+						# we don't have a remote tracking branch
+						basedOnBranch="develop"
+					fi
+					;;
+				*)
+					basedOnBranch="develop"
+					;;
+			esac
+			;;
+		"release")
+			# Find the name of the release branch. We want to get rid of the first two characters
+			# which might be '* ' if it's the current branch.
+			# Note that gitflow allows only one release branch
+			# alternative way would be:  git show-ref --heads | grep $prefix | cut -c53-
+			# or:  git show-ref --heads | grep $prefix | cut -f2 -d" " | cut -c12-
+			basedOnBranch=$(git branch | cut -c3- | grep "^$prefix[^#]*$" )
+
+			if [ $(wc -l <<< "$basedOnBranch") -gt 1 ]; then
+				echo "fatal: More than one local $1 branch. Only one is allowed."
+				exit 1
+			fi
+
+			if [ -z "$basedOnBranch" ]; then
+				echo "fatal: No existing local $1 branch. Please track $1 branch first."
+				exit 1
+			fi
+			;;
+	esac
+fi
+
+if ! git ls-remote $origin | cut -f2 | grep -q "$basedOnBranch\$"; then
+	echo "fatal: Branch '$basedOnBranch' doesn't exist on remote"
+	exit 1
+fi
+
+branch="${feature}$2"
+git fetch $origin
+git checkout --track -b $branch $origin/$basedOnBranch
+
+echo
+echo "Summary of actions:"
+echo "- A new branch '$branch' was created, based on '$basedOnBranch'"
+echo "- You are now on branch '$branch'"
+echo
+echo "Now, start committing on your feature. When done, use:"
+echo
+echo "    git review"
+echo

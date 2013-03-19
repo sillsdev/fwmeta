@@ -1,0 +1,220 @@
+#!/bin/bash
+# Unit tests for git-start-task script
+
+oneTimeSetUp()
+{
+	basedir=$(pwd)/../..
+	. ../functions.sh
+
+	dir=$(pwd)
+	tmpdir=$(mktempdir)
+	cd $tmpdir
+
+	git init -q --bare bareRepo
+	git clone -q bareRepo testingRepo &> /dev/null
+	cd testingRepo
+	git commit -q --allow-empty -m "Initial commit"
+	git push -q origin master &> /dev/null
+	cd $dir
+
+	SUT=$basedir/fwmeta/git-start-task
+}
+
+oneTimeTearDown()
+{
+	cd $HOME
+	rm -rf $tmpdir
+}
+
+deleteBranch()
+{
+	git branch | grep -q $1 && git branch -D $1 > /dev/null
+	git push -q origin :$1 &> /dev/null
+}
+
+setUp()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q master
+	cd $dir
+}
+
+tearDown()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q master
+	for branch in $(git branch | cut -c3-); do
+		if [ "$branch" != "master" ]; then
+			deleteBranch $branch
+		fi
+	done
+}
+
+exerciseSUT()
+{
+	cd $tmpdir/testingRepo
+	$SUT "$@"
+}
+
+getCurrentParentBranch()
+{
+	if parent=$(git rev-parse --symbolic-full-name --abbrev-ref @{u} 2>/dev/null); then
+		echo "$parent"
+	fi
+}
+
+# Creates branch $1 based on $2
+createBranch()
+{
+	git branch $1 $2
+	git push -q --set-upstream origin $1 &>/dev/null
+}
+
+testNoParameters()
+{
+	assertFalse "Didn't fail when called without parameters" "exerciseSUT"
+}
+
+testNoReleaseBranch()
+{
+	assertFalse "Didn't fail without release branch" "exerciseSUT release TST-0001"
+}
+
+testIllegalFirstParam()
+{
+	assertFalse "Did not fail on illegal first argument" "exerciseSUT xyz abc"
+}
+
+testMultipleReleaseBranches()
+{
+	cd $tmpdir/testingRepo
+	createBranch release/123
+	createBranch release/124
+
+	assertFalse "Didn't fail with multiple release branches" "exerciseSUT release TST-0001"
+}
+
+testReleaseBranchExists()
+{
+	cd $tmpdir/testingRepo
+	createBranch release/123
+
+	assertTrue "Failed with existing release branch" "exerciseSUT release TST-0001"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/release/123" "$(getCurrentParentBranch)"
+}
+
+testBaseTopicOnOtherTopic()
+{
+	cd $tmpdir/testingRepo
+	createBranch release/123
+	git checkout -q --track -b "feature/987" origin/release/123 &>/dev/null
+	git commit -q --allow-empty -m "Bugfix"
+
+	assertTrue "Failed when basing on other topic" "exerciseSUT release TST-0001 feature/987"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/release/123" "$(getCurrentParentBranch)"
+}
+
+testSupportFails()
+{
+	cd $tmpdir/testingRepo
+	createBranch support/123
+	git checkout -q support/123 &>/dev/null
+
+	assertFalse "Did not fail when trying to create feature with support as base" "exerciseSUT support TST-0001"
+}
+
+testHotfixFailsIfNoParent()
+{
+	cd $tmpdir/testingRepo
+	createBranch hotfix/123
+
+	assertFalse "Did not fail when not specifying base hotfix branch" "exerciseSUT hotfix TST-0001"
+}
+
+testHotfix()
+{
+	cd $tmpdir/testingRepo
+	createBranch hotfix/123
+
+	assertTrue "Failed to create topic branch" "exerciseSUT hotfix TST-0001 hotfix/123"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/hotfix/123" "$(getCurrentParentBranch)"
+}
+
+testHotfixNoParentOnHotfixBranch()
+{
+	cd $tmpdir/testingRepo
+	createBranch hotfix/123
+	git checkout -q hotfix/123
+
+	assertTrue "Failed to create topic branch based on current hotfix branch" "exerciseSUT hotfix TST-0001"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/hotfix/123" "$(getCurrentParentBranch)"
+}
+
+testFailsWithLocalBranch()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q -b hotfix/123
+
+	assertFalse "Didn't fail without remote branch" "exerciseSUT hotfix TST-0001"
+}
+
+testDevelop()
+{
+	cd $tmpdir/testingRepo
+	createBranch develop
+
+	assertTrue "Failed to create topic branch" "exerciseSUT develop TST-0001"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/develop" "$(getCurrentParentBranch)"
+}
+
+testDevelopBasedOnShortLivedTopic()
+{
+	cd $tmpdir/testingRepo
+	createBranch develop
+	git checkout -q --track -b feature/abc origin/develop &>/dev/null
+
+	assertTrue "Failed to create topic branch" "exerciseSUT develop TST-0001"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/develop" "$(getCurrentParentBranch)"
+}
+
+testDevelopBasedOnLongLivedTopic()
+{
+	cd $tmpdir/testingRepo
+	createBranch develop
+	createBranch feature/abc develop
+	git checkout -q feature/abc
+
+	assertTrue "Failed to create topic branch" "exerciseSUT develop TST-0001"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/feature/abc" "$(getCurrentParentBranch)"
+}
+
+testDevelopWhenOnReleaseBranch()
+{
+	cd $tmpdir/testingRepo
+	createBranch release/124
+	git checkout -q release/124
+	createBranch develop
+	assertTrue "Failed to create topic branch" "exerciseSUT develop TST-0001"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/develop" "$(getCurrentParentBranch)"
+}
+
+testDevelopWhenOnReleaseFeatureBranch()
+{
+	cd $tmpdir/testingRepo
+	createBranch release/124
+	git checkout -q --track -b feature/abc origin/release/124 &>/dev/null
+	createBranch develop
+	assertTrue "Failed to create topic branch" "exerciseSUT develop TST-0001"
+	assertEquals "Didn't create topic branch:" "feature/TST-0001" "$(currentBranch)"
+	assertEquals "Didn't set parent branch:" "origin/develop" "$(getCurrentParentBranch)"
+}
+
+. shunit2/src/shunit2
