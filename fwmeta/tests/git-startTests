@@ -1,0 +1,226 @@
+#!/bin/bash
+
+oneTimeSetUp()
+{
+	basedir=$(pwd)/../..
+	. ../functions.sh
+	unittest=1
+
+	dir=$(pwd)
+	tmpdir=$(mktempdir)
+	cd $tmpdir
+
+	git init -q --bare bareRepo
+	git clone -q bareRepo masterRepo 2>/dev/null
+
+	cd masterRepo
+	git commit -q --allow-empty -m "Initial commit"
+	git checkout -q -b develop
+	git commit -q --allow-empty -m "Commit on develop"
+	git commit -q --allow-empty -m "Another commit on develop"
+	git push -q origin --all 2>/dev/null
+
+	cd ..
+	git clone -q bareRepo testingRepo 2>/dev/null
+	cd testingRepo
+
+	git checkout -q develop > /dev/null
+	git checkout -q master > /dev/null
+
+	cd $dir
+
+	SUT=$basedir/fwmeta/git-start
+}
+
+exerciseSUT()
+{
+	$SUT "$@"
+}
+
+oneTimeTearDown()
+{
+	cd $HOME
+	rm -rf $tmpdir
+}
+
+setUp()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q master
+	git config --replace-all remote.origin.fetch "+refs/heads/master:refs/remotes/origin/master"
+	git config --replace-all remote.origin.push "+refs/heads/master:refs/for/master"
+	git config --add remote.origin.fetch "+refs/heads/develop:refs/remotes/origin/develop"
+	git config --add remote.origin.push "+refs/heads/develop:refs/for/develop"
+
+	cd $dir
+}
+
+deleteBranch()
+{
+	git branch | grep -q $1 && git branch -D $1 > /dev/null
+	git push -q origin :$1
+}
+
+tearDown()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q master
+	for branch in $(git branch | grep "\(release\|support\|hotfix\)" | cut -c3-); do
+		deleteBranch $branch
+	done
+}
+
+testNoParameters()
+{
+	assertFalse "Didn't fail when called without parameters" "exerciseSUT"
+}
+
+testReleaseBranchCreatedBasedOnDevelop()
+{
+	branch=release/1.2
+	cd $tmpdir/testingRepo
+	assertTrue "Failed unexpectedly" "exerciseSUT release 1.2"
+	assertEquals "Wrong name for release branch" "$branch" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$(git rev-parse develop)" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/$branch:refs/remotes/origin/$branch" "$(git config --get-all remote.origin.fetch | grep $branch)"
+	assertEquals "Didn't create push:" "+refs/heads/$branch:refs/for/$branch" "$(git config --get-all remote.origin.push | grep $branch)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q "$branch\$""
+}
+
+testReleaseWithReleasePrefix()
+{
+	branch=release/1.3
+	cd $tmpdir/testingRepo
+	assertTrue "Failed unexpectedly" "exerciseSUT release $branch"
+	assertEquals "Wrong name for release branch" "$branch" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$(git rev-parse develop)" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/$branch:refs/remotes/origin/$branch" "$(git config --get-all remote.origin.fetch | grep $branch)"
+	assertEquals "Didn't create push:" "+refs/heads/$branch:refs/for/$branch" "$(git config --get-all remote.origin.push | grep $branch)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q $branch"
+}
+
+testOnlyOneReleaseBranchAllowed()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q -b release/1.4 develop
+	git push -q origin release/1.4
+	assertFalse "Created a second release branch" "exerciseSUT release 1.4a"
+}
+
+testUseDifferentBaseCommit()
+{
+	branch=release/1.5
+	cd $tmpdir/testingRepo
+	prevCommit=$(git rev-parse develop^)
+	assertTrue "Failed unexpectedly" "exerciseSUT release 1.5 $prevCommit"
+	assertEquals "Wrong name for release branch" "$branch" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$prevCommit" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/$branch:refs/remotes/origin/$branch" "$(git config --get-all remote.origin.fetch | grep $branch)"
+	assertEquals "Didn't create push:" "+refs/heads/$branch:refs/for/$branch" "$(git config --get-all remote.origin.push | grep $branch)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q $branch"
+}
+
+testMultipleSupportBranchesAllowed()
+{
+	branch=support/1.6
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch master
+	git push -q origin $branch
+	assertTrue "Failed creating a second support branch" "exerciseSUT support 1.6a master"
+	assertEquals "Wrong name for support branch" "${branch}a" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$(git rev-parse master)" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/${branch}a:refs/remotes/origin/${branch}a" "$(git config --get-all remote.origin.fetch | grep ${branch}a)"
+	assertEquals "Didn't create push:" "+refs/heads/${branch}a:refs/for/${branch}a" "$(git config --get-all remote.origin.push | grep ${branch}a)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q ${branch}a"
+}
+
+testSupportBranchBasedOnAnotherSupportBranch()
+{
+	branch=support/1.7
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch master
+	git commit -q --allow-empty -m "Commit on $branch"
+	git push -q origin $branch 2>/dev/null
+	assertTrue "Failed creating a support branch based on other support branch" "exerciseSUT support 1.7a support/1.7"
+	assertEquals "Wrong name for support branch" "${branch}a" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$(git rev-parse $branch)" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/${branch}a:refs/remotes/origin/${branch}a" "$(git config --get-all remote.origin.fetch | grep ${branch}a)"
+	assertEquals "Didn't create push:" "+refs/heads/${branch}a:refs/for/${branch}a" "$(git config --get-all remote.origin.push | grep ${branch}a)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q ${branch}a"
+}
+
+testSupportFailsWithoutBaseCommit()
+{
+	branch=support/1.8
+	cd $tmpdir/testingRepo
+	assertFalse "Shouldn't create a support branch without specifying base" "exerciseSUT support 1.8"
+}
+
+testHotfixBranchWithIllegalCurrentBranch()
+{
+	branch=hotfix/1.8
+	cd $tmpdir/testingRepo
+	git checkout -q develop
+	assertTrue "Failed creating a support branch" "exerciseSUT hotfix 1.8"
+	assertEquals "Wrong name for support branch" "$branch" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$(git rev-parse master)" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/$branch:refs/remotes/origin/$branch" "$(git config --get-all remote.origin.fetch | grep $branch)"
+	assertEquals "Didn't create push:" "+refs/heads/$branch:refs/for/$branch" "$(git config --get-all remote.origin.push | grep $branch)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q $branch"
+}
+
+testFeatureBranchBasedOnOtherFeatureImplicit()
+{
+	branch=feature/1.9
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	git commit -q --allow-empty -m "Commit on $branch"
+	git push -q origin $branch 2>/dev/null
+	assertTrue "Failed creating a second support branch" "exerciseSUT feature 1.9-a"
+	assertEquals "Wrong name for support branch" "${branch}-a" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$(git rev-parse $branch)" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/${branch}-a:refs/remotes/origin/${branch}-a" "$(git config --get-all remote.origin.fetch | grep ${branch}-a)"
+	assertEquals "Didn't create push:" "+refs/heads/${branch}-a:refs/for/${branch}-a" "$(git config --get-all remote.origin.push | grep ${branch}-a)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q ${branch}-a"
+}
+
+testFeatureBranchBasedOnOtherFeature()
+{
+	branch=feature/1.10
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	git commit -q --allow-empty -m "Commit on $branch"
+	git push -q origin $branch 2>/dev/null
+	assertTrue "Failed creating a second support branch" "exerciseSUT feature 1.10-a $branch"
+	assertEquals "Wrong name for support branch" "${branch}-a" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$(git rev-parse $branch)" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/${branch}-a:refs/remotes/origin/${branch}-a" "$(git config --get-all remote.origin.fetch | grep ${branch}-a)"
+	assertEquals "Didn't create push:" "+refs/heads/${branch}-a:refs/for/${branch}-a" "$(git config --get-all remote.origin.push | grep ${branch}-a)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q ${branch}-a"
+}
+
+testFeatureBranch()
+{
+	branch=feature/1.11
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	git commit -q --allow-empty -m "Commit on $branch"
+	git push -q origin $branch 2>/dev/null
+	git checkout -q master
+	assertTrue "Failed creating a second support branch" "exerciseSUT feature 1.11-a"
+	assertEquals "Wrong name for support branch" "${branch}-a" "$(currentBranch)"
+	assertEquals "Based on wrong branch" "$(git rev-parse develop)" "$(git rev-parse HEAD)"
+	assertEquals "Didn't create fetch:" "+refs/heads/${branch}-a:refs/remotes/origin/${branch}-a" "$(git config --get-all remote.origin.fetch | grep ${branch}-a)"
+	assertEquals "Didn't create push:" "+refs/heads/${branch}-a:refs/for/${branch}-a" "$(git config --get-all remote.origin.push | grep ${branch}-a)"
+	cd $tmpdir/bareRepo
+	assertTrue "Didn't push to origin" "git branch | grep -q ${branch}-a"
+}
+. shunit2/src/shunit2

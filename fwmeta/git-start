@@ -1,0 +1,167 @@
+#!/bin/bash
+# Starts a new release|hotfix|support or long-lived feature branch
+# Creating short-lived feature branches is delegated to git-start-task script.
+# Gitflow allows only one release branch, but we can have multiple support and hotfix
+# branches. A release branch is based on develop, a hotfix branch on master or a support branch,
+# and a support branch on master or a support branch. A feature branch is based on develop, or
+# the current feature branch.
+
+set -e
+
+usage()
+{
+	echo "Usage:"
+	echo
+	echo "$(basename "$0") <kind> <version> [<base>]"
+	echo "$(basename "$0") task <taskkind> <name> [<parentbranch>]"
+	echo "$(basename "$0") feature <name> [<parentbranch>]"
+	echo "$(basename "$0") support <version> <tag>"
+	echo
+	echo "Creates a new long-lived release, hotfix, or support branch and pushes it to the"
+	echo "server."
+	echo "The second form creates a short-lived feature branch locally."
+	echo "The third form creates a long-lived feature branch and pushes it to the server."
+	echo
+	echo "<kind>"
+	echo "    One of release or hotfix"
+	echo
+	echo "<version>"
+	echo "    Version number of upcoming release. This will be part of the release, hotfix,"
+	echo "    or support branch name."
+	echo
+	echo "<base>"
+	echo "    Optional. Commit to use as base for release, hotfix, or support branch instead of"
+	echo "    master or develop."
+	echo
+	echo "<taskkind>"
+	echo "    One of release|hotfix|develop. Kind of topic branch. Determines the parent"
+	echo "    branch unless one is explictly specified."
+	echo
+	echo "<name>"
+	echo "    Name of the topic branch (without prefix)."
+	echo
+	echo "<parentbranch>"
+	echo "    Optional. The name of the parent branch. If not given and <taskkind> is 'release'"
+	echo "    we use the current release branch as base. If <taskkind> is 'hotfix' we fail"
+	echo "    unless the current branch is a hotfix branch. If <taskkind> is 'develop' and the"
+	echo "    current branch has a corresponding remote branch we base on the current branch,"
+	echo "    otherwise we use 'develop' as base."
+
+	exit $1
+}
+
+. "$(dirname "$0")/defs.sh"
+. "$(dirname "$0")/functions.sh"
+
+if [ $# -lt 1 ]; then
+	echo "fatal: missing parameter"
+	usage 1
+fi
+
+kind=$1
+shift
+
+case "$kind" in
+	"task")
+		$(dirname "$0")/git-start-task "$@"
+		exit 0
+		;;
+	"release"|"feature"|"support"|"hotfix")
+		prefix=$(git config --get gitflow.prefix.$kind || echo $kind/)
+		;;
+	"--help"|"-h")
+		usage 0
+		;;
+	*)
+		echo "fatal: Unknown kind: '$1'."
+		usage 1
+		;;
+esac
+
+# Unfortunately there's no Gerrit command that we could use to check if we have permission to
+# push a branch. Instead we check the group. That's a hack but better than no check. The group
+# is only visible to admins and members of the group. And we don't want to do the expensive
+# check when running unit tests.
+if ! $unittest && ! ssh -p $GERRITPORT $gerritusername@$GERRIT gerrit ls-groups | grep -q "$GERRITGROUP"; then
+	echo "fatal: No permission to create $kind branch on Gerrit server"
+	exit 1
+fi
+
+# We can have multiple support, hotfix and feature branches, but only one release branch
+case "$kind" in
+	"support"|"feature"|"hotfix")
+		;;
+	*)
+		if git ls-remote $origin | grep -q $prefix; then
+			echo "fatal: There is already an existing $kind branch ($(git ls-remote $origin | grep $prefix | cut -c53-))."
+			echo "       Finish that one first."
+			exit 1
+		fi
+		;;
+esac
+
+branch=$prefix${1#$prefix}
+
+git fetch $origin
+
+if [ -n "$2" ]; then
+	baseCommit=$2
+else
+	case "$kind" in
+		"release")
+			baseCommit=$origin/$develop
+			;;
+		"feature")
+			currentBranch=$(currentBranch)
+			if [ "${currentBranch#$prefix}" != "$currentBranch" ]; then
+				# we're on a feature branch. Use that as parent branch
+				baseCommit=$currentBranch
+			else
+				# base on develop
+				baseCommit=$origin/$develop
+			fi
+			;;
+		"hotfix")
+			currentBranch=$(currentBranch)
+			if [ "${currentBranch#$prefix}" != "$currentBranch" ]; then
+				# we're on a support branch. Use that as parent branch
+				baseCommit=$currentBranch
+			else
+				# base on master
+				baseCommit=$origin/$master
+			fi
+			;;
+		"support")
+			echo "fatal: please specify base commit for support branch."
+			usage 1
+			;;
+	esac
+fi
+
+git checkout -b $branch $baseCommit
+git push --set-upstream $origin $branch:$branch
+git config --add remote.$origin.fetch "+refs/heads/$branch:refs/remotes/origin/$branch"
+git config --add remote.$origin.push "+refs/heads/$branch:refs/for/$branch"
+# It would be beneficial to do a git fetch here. However, because the mirroring from gerrit
+# to github takes some time this would probably fail, so we don't do it now.
+
+echo
+echo "Summary of actions:"
+echo "- A new branch '$branch' was created, based on '$baseCommit'"
+echo "- Branch '$branch' was pushed to the server"
+echo "- You are now on branch '$branch'"
+echo
+case "$kind" in
+	"release"|"hotfix"|"support")
+		echo "Follow-up actions:"
+		echo "- Bump the version number now!"
+		echo "- Start committing bug fixes"
+		echo "- When done, run:"
+		;;
+	"feature")
+		echo "Now, start working on the long-lived feature branch. When done, use:"
+		;;
+esac
+echo
+echo "    git finish $kind ${branch#$prefix}"
+echo

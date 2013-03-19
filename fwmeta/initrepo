@@ -3,15 +3,12 @@
 
 set -e
 
-GERRIT="gerrit.lsdev.sil.org"
-GERRITPORT=59418
-FWMETAREPO=fwmeta
-TOOLSDIR=fwmeta
+[ -f "$(dirname "$0")/defs.sh" ] && . "$(dirname "$0")/defs.sh"
 
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=13
+THISALIASVERSION=14
 
 # Display help
 help()
@@ -329,6 +326,10 @@ initrepo()
 			git config --remove_section guitool.2_Hotfix/2_Finish 2> /dev/null || true
 			git config --remove_section guitool.3_Support/2_Finish 2> /dev/null || true
 		fi
+		if [ "$(git config --get fwinit.aliasversion || echo -1)" -lt "14" -o "$reset" = "1" ]; then
+			git config --unset guitool.0_Feature/Publish.cmd 2> /dev/null || true
+			git config --unset guitool.1_Release/Publish.cmd 2> /dev/null || true
+		fi
 
 		sedReplace="$basedir/$TOOLSDIR"
 		sedReplace=${sedReplace//\//\\\/} # replace all / with \/
@@ -338,39 +339,45 @@ initrepo()
 		git config alias.globstat '!sh -c "SEDREPLACE/repostatus \$1" -'
 		git config alias.bypass '!sh -c "SEDREPLACE/bypass.sh" -'
 		git config alias.track '!sh -c "SEDREPLACE/git-track \$1" -'
-		git config alias.start '!sh -c "SEDREPLACE/git-start-task \$@" -'
+		git config alias.start '!sh -c "SEDREPLACE/git-start \$@" -'
 		git config alias.finish '!sh -c "SEDREPLACE/git-finish-task \$@" -'
 		# do this last so that we can replace multiple entries at once
 		sed "s/SEDREPLACE/$sedReplace/g" .git/config 2>&1 > .git/config2
 		mv .git/config2 .git/config
 
-		git config guitool.0_Feature/0_Start.cmd 'git start develop $ARGS'
+		git config guitool.0_Feature/0_Start.cmd 'git start task develop $ARGS'
 		git config guitool.0_Feature/0_Start.argprompt "Feature name (JIRA number)"
 		git config "guitool.0_Feature/1_Submit for Code Review.cmd" 'git review'
 		git config guitool.0_Feature/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git finish'
-		git config guitool.0_Feature/Publish.cmd 'git flow feature publish ${CUR_BRANCH#*/}'
+		git config guitool.0_Feature/Create.cmd 'git start release $ARGS'
+		git config guitool.0_Feature/Create.argprompt "Name of the long-lived feature branch (without feature/ prefix)"
 		git config guitool.0_Feature/Track.cmd 'git track feature/$ARGS'
 		git config guitool.0_Feature/Track.argprompt "Name of the feature (without feature/ prefix)"
 
-		git config "guitool.1_Release/0_Start Bugfix.cmd" 'git start release $ARGS'
+		git config "guitool.1_Release/0_Start Bugfix.cmd" 'git start task release $ARGS'
 		git config "guitool.1_Release/0_Start Bugfix.argprompt" "Bugfix name (JIRA number)"
 		git config "guitool.1_Release/1_Submit for Code Review.cmd" 'git review'
 		git config "guitool.1_Release/2_Finish Bugfix.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git finish'
-		git config guitool.1_Release/Publish.cmd 'git flow release publish ${CUR_BRANCH#*/}'
+		git config guitool.1_Release/Create.cmd 'git start release $ARGS'
+		git config guitool.1_Release/Create.argprompt "Name of the upcoming release"
 		git config guitool.1_Release/Track.cmd 'git track release/$ARGS'
 		git config guitool.1_Release/Track.argprompt "Name of the release (without release/ prefix)"
 
-		git config "guitool.2_Hotfix/0_Start Bugfix.cmd" 'git start hotfix $ARGS'
+		git config "guitool.2_Hotfix/0_Start Bugfix.cmd" 'git start task hotfix $ARGS'
 		git config "guitool.2_Hotfix/0_Start Bugfix.argprompt" "Bugfix name (JIRA number)"
 		git config "guitool.2_Hotfix/1_Submit for Code Review.cmd" 'git review'
 		git config "guitool.2_Hotfix/2_Finish Bugfix.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git finish'
+		git config guitool.2_Hotfix/Create.cmd 'git start hotfix $ARGS'
+		git config guitool.2_Hotfix/Create.argprompt "Name of the upcoming hotfix release"
 		git config guitool.2_Hotfix/Track.cmd 'git track hotfix/$ARGS'
 		git config guitool.2_Hotfix/Track.argprompt "Name of the hotfix (without hotfix/ prefix)"
 
-		git config "guitool.3_Support/0_Start Bugfix.cmd" 'git start support $ARGS $CUR_BRANCH'
+		git config "guitool.3_Support/0_Start Bugfix.cmd" 'git start task support $ARGS $CUR_BRANCH'
 		git config "guitool.3_Support/0_Start Bugfix.argprompt" "Bugfix name (JIRA number)"
 		git config "guitool.3_Support/1_Submit for Code Review.cmd" 'git review'
 		git config "guitool.3_Support/2_Finish Bugfix.cmd" 'GIT_EDITOR=$(git config --get gui.editor) git finish'
+		git config guitool.3_Support/Create.cmd 'git start support $ARGS'
+		git config guitool.3_Support/Create.argprompt "Name of the upcoming support release"
 		git config guitool.3_Support/Track.cmd 'git track support/$ARGS'
 		git config guitool.3_Support/Track.argprompt "Name of the support branch (without support/ prefix)"
 
