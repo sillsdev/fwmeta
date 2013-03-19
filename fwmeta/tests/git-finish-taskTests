@@ -1,0 +1,312 @@
+#!/bin/bash
+# Unit tests for git-finish-task script
+
+oneTimeSetUp()
+{
+	basedir=$(pwd)/../..
+	. ../functions.sh
+
+	dir=$(pwd)
+	tmpdir=$(mktempdir)
+	cd $tmpdir
+
+	git init -q --bare bareRepo
+	git clone -q bareRepo masterRepo 2>/dev/null
+
+	cd masterRepo
+	git commit -q --allow-empty -m "Initial commit"
+	git branch release/123
+	git branch develop
+	git push -q origin --all 2>/dev/null
+
+	cd ..
+	git clone -q bareRepo testingRepo 2>/dev/null
+	cd $dir
+
+	SUT=$basedir/fwmeta/git-finish-task
+}
+
+oneTimeTearDown()
+{
+	cd $HOME
+	rm -rf $tmpdir
+}
+
+setUp()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q master
+	cd $dir
+}
+
+deleteBranch()
+{
+	git branch | grep -q $1 && git branch -D $1 > /dev/null
+}
+
+tearDown()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q master
+	for branch in $(git branch | cut -c3-); do
+		if [ "$branch" != "master" ]; then
+			deleteBranch $branch
+		fi
+	done
+	git reset -q --hard
+	git clean -q -dxf
+}
+
+exerciseSUT()
+{
+	cd $tmpdir/testingRepo
+	$SUT "$@"
+}
+
+# Creates branch $1 based on $2
+createBranch()
+{
+	git branch --track $1 $2 &> /dev/null
+	git push -q origin $1 &>/dev/null
+}
+
+testNoParameters()
+{
+	assertFalse "Didn't fail when called without parameters" "exerciseSUT"
+}
+
+testDirtyWorkdir()
+{
+	cd $tmpdir/testingRepo
+	touch bla
+	git add bla
+	assertFalse "Didn't fail when called with dirty workdir" "exerciseSUT"
+}
+
+testFeatureUpToDate()
+{
+	# local feature branch has the change; on server change was merged on develop
+	topic=feature/122
+	parent=develop
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	git checkout -q -b $topic
+	touch bla
+	git add bla
+	git commit -q -m "$topic"
+	git push -q origin $topic:$parent 2>/dev/null
+
+	assertTrue "Failed when finishing feature" "exerciseSUT"
+	assertFalse "Didn't delete feature branch" "git branch | grep -q $topic"
+}
+
+testFeatureRebasedOnServer()
+{
+	# local feature branch has change; on server change was rebased and merged on develop
+	topic=feature/123
+	parent=develop
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	git checkout -q -b $topic
+	touch file123
+	git add file123
+	git commit -q -m "$topic"
+	patchname=$(git format-patch -1)
+	cd $tmpdir/masterRepo
+	git fetch -q origin
+	git checkout -q $parent
+	git rebase -q origin/$parent
+	touch file1
+	git add file1
+	git commit -q -m "other change on $parent"
+	git am -q ../testingRepo/$patchname
+	git push -q origin --all 2>/dev/null
+
+	cd $tmpdir/testingRepo
+	assertTrue "Failed when finishing feature" "exerciseSUT"
+	assertFalse "Didn't delete feature branch" "git branch | grep -q $topic"
+}
+
+testFeatureWithConflict()
+{
+	# local feature branch has change different from server; on server change was rebased and
+	# merged on develop
+	topic=feature/124
+	parent=develop
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	git checkout -q -b $topic
+	touch file124
+	git add file124
+	git commit -q -m "$topic"
+	cd $tmpdir/masterRepo
+	git fetch -q origin
+	git checkout -q $parent
+	git rebase -q origin/$parent
+	touch file2
+	git add file2
+	git commit -q -m "$topic"
+	git push -q origin --all 2>/dev/null
+
+	cd $tmpdir/testingRepo
+	assertFalse "Didn't fail when finishing feature" "exerciseSUT"
+	assertTrue "Deleted feature branch" "git branch | grep -q $topic"
+}
+
+testFeatureBasedOnLongLivedFeature()
+{
+	# local feature branch has the change; on server change was merged on long-lived feature branch
+	topic=feature/126
+	parent=feature/125
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q develop > /dev/null
+	createBranch $parent
+	createBranch $topic $parent
+	git checkout -q $topic
+	touch file126
+	git add file126
+	git commit -q -m "$topic"
+	git push -q origin $topic:$parent 2>/dev/null
+
+	assertTrue "Failed when finishing feature" "exerciseSUT"
+	assertFalse "Didn't delete feature branch" "git branch | grep -q $topic"
+}
+
+testReleaseUpToDate()
+{
+	# local feature branch has change; on server change was merged on release branch
+	topic=feature/127
+	parent=release/123
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	createBranch $topic $parent
+	git checkout -q $topic
+	touch file127
+	git add file127
+	git commit -q -m "$topic"
+	git push -q origin $topic:$parent 2>/dev/null
+
+	assertTrue "Failed when finishing feature" "exerciseSUT"
+	assertFalse "Didn't delete feature branch" "git branch | grep -q $topic"
+}
+
+testReleaseRebasedOnServer()
+{
+	# local feature branch has change; on server change was rebased and merged on release branch
+	topic=feature/128
+	parent=release/123
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	createBranch $topic $parent
+	git checkout -q $topic
+	touch file128
+	git add file128
+	git commit -q -m "$topic"
+	patchname=$(git format-patch -1)
+	cd $tmpdir/masterRepo
+	git fetch -q origin
+	git checkout -q $parent
+	git rebase -q origin/$parent
+	touch file_128
+	git add file_128
+	git commit -q -m "other change on $parent"
+	git am -q ../testingRepo/$patchname
+	git push -q origin --all 2>/dev/null
+
+	cd $tmpdir/testingRepo
+	assertTrue "Failed when finishing feature" "exerciseSUT"
+	assertFalse "Didn't delete feature branch" "git branch | grep -q $topic"
+}
+
+testReleaseNoParent()
+{
+	# local feature branch has the change; on server change was merged on release branch;
+	# feature branch doesn't specify release branch name
+	topic=feature/129
+	parent=release/123
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	git checkout -q -b $topic
+	touch file129
+	git add file129
+	git commit -q -m "$topic"
+	git push -q origin $topic:$parent 2>/dev/null
+
+	assertFalse "Didn't fail when finishing feature without parent" "exerciseSUT"
+	assertTrue "Deleted feature branch" "git branch | grep -q $topic"
+}
+
+testExplicitBranch()
+{
+	# local feature branch has the change; on server change was merged on develop
+	topic=feature/130
+	parent=develop
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	git checkout -q -b $topic
+	touch file130
+	git add file130
+	git commit -q -m "$topic"
+	git push -q origin $topic:$parent 2>/dev/null
+	git checkout -q $parent > /dev/null
+	git checkout -q -b "feature/130a"
+	touch file130a
+	git add file130a
+	git commit -q -m "other branch"
+
+	assertTrue "Failed when finishing feature" "exerciseSUT 130"
+	assertFalse "Didn't delete feature branch" "git branch | grep -q "$topic\$""
+	assertTrue "Deleted wrong feature branch" "git branch | grep -q "${topic}a\$""
+}
+
+testExplicitCompleteBranch()
+{
+	# local feature branch has the change; on server change was merged on develop
+	topic=feature/131
+	parent=develop
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	git checkout -q -b $topic
+	touch file131
+	git add file131
+	git commit -q -m "$topic"
+	git push -q origin $topic:$parent 2>/dev/null
+	git checkout -q $parent > /dev/null
+	git checkout -q -b "feature/130a"
+	touch file130a
+	git add file130a
+	git commit -q -m "other branch"
+
+	assertTrue "Failed when finishing feature" "exerciseSUT $topic"
+	assertFalse "Didn't delete feature branch" "git branch | grep -q "$topic\$""
+}
+
+testExplicitParent()
+{
+	# local feature branch has the change; on server change was merged on develop.
+	# Local feature branch doesn't have tracking branch.
+	topic=feature/132
+	parent=develop
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $parent > /dev/null
+	git checkout -q -b $topic
+	touch file132
+	git add file132
+	git commit -q -m "$topic"
+	git push -q origin $topic:$parent 2>/dev/null
+
+	assertTrue "Failed when finishing feature" "exerciseSUT 132 $parent"
+	assertFalse "Didn't delete feature branch" "git branch | grep -q $topic"
+}
+
+. shunit2/src/shunit2

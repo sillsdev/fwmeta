@@ -1,0 +1,74 @@
+#!/bin/bash
+# Finish a topic branch (aka usually delete the branch)
+
+set -e
+
+. $(dirname $0)/functions.sh
+
+usage()
+{
+	echo "Usage:"
+	echo
+	echo "$(basename "$0") [<name> [<parent>]]"
+	echo
+	echo "<name>"
+	echo "    Name of topic branch. If not specified the name of the the current branch is used."
+	echo
+	echo "<parent>"
+	echo "    Name of the parent branch. If not specified the name is inferred from the"
+	echo "    tracking branch."
+	echo
+
+	exit $1
+}
+
+if [ "$1" = "--help" -o "$1" = "-h" ]; then
+	usage 0
+fi
+
+if __isDirty; then
+	echo "fatal: You have a dirty working directory. Aborting."
+	exit 1
+fi
+
+origin=$(git config --get gitflow.origin || echo origin)
+develop=$(git config --get gitflow.branch.develop || echo develop)
+feature=$(git config --get gitflow.prefix.feature || echo feature/)
+
+currentBranch=$(currentCommit)
+if [ -n "$1" ]; then
+	currentBranch=$feature${1#$feature}
+fi
+
+parentBranch=$(getParentBranch "$currentBranch")
+
+if [ -n "$2" ]; then
+	parentBranch=$2
+fi
+
+if [ -z "$parentBranch" ]; then
+	echo "fatal: Don't know parent of feature branch $currentBranch"
+	exit 1
+fi
+
+# One might wonder why we don't use "git pull --rebase" below and wonder about the order.
+# Using rebase instead of pull --rebase has the benefit that it also works when the branch
+# tracking isn't set up completely (as is the case when running the unit tests). Rebasing on
+# top of $origin/$parentBranch has the advantage that it works even when there are local
+# commits on $parentBranch. And rebasing $parentBranch last saves one branch switch.
+# Note that the expectation is that all commits of $currentBranch have already been merged on
+# $origin/$parentBranch, so rebasing $currentBranch is just a safeguard and will cause
+# "git branch -d" to fail if there are unmerged local changes. Technically rebasing $parentBranch
+# wouldn't be necessary, but is probably what the user expects.
+git fetch $origin
+git checkout $currentBranch
+git rebase $origin/$parentBranch # rebase $currentBranch
+git checkout $parentBranch
+git rebase $origin/$parentBranch # rebase $parentBranch
+git branch -d $currentBranch
+
+echo
+echo "Summary of actions:"
+echo "- Feature branch '$currentBranch' has been removed"
+echo "- You are now on branch '$parentBranch'"
+echo
