@@ -1,0 +1,358 @@
+#!/bin/bash
+# Finish a release, hotfix, or long-lived feature branch
+# Finishing short-lived feature branches is delegated to git-finish-task script.
+# This script replaces the gitflow tasks for finishing feature|hotfix|release branches.
+# However, contrary to gitflow we fast-forward the merge commits if possible.
+#
+# Note: there's no finish for support branches since those live forever
+#
+# Necessary actions:
+# - release branch: tag commit, merge into develop and master, delete branch
+# - hotfix branch: tag commit, merge into develop and master|support branch, delete branch
+# - feature branch: merge into develop, delete branch
+
+set -e
+
+usage()
+{
+	echo "Usage:"
+	echo
+	echo "$(basename "$0") [options] release <version> [-m <msg>]"
+	echo "$(basename "$0") [options] hotfix <version> <parentbranch> [-m <msg>]"
+	echo "$(basename "$0") task [<name> [<parent>]]"
+	echo "$(basename "$0") [options] feature [<featurebranch>]"
+	echo "$(basename "$0") --continue"
+	echo
+	echo "The first and second form finishes a long-lived release or hotfix branch"
+	echo "and pushes it to the server."
+	echo "The third form finishes a short-lived feature branch."
+	echo "The fourth form finishes a long-lived feature branch and pushes it to the server."
+	echo "The fifth form continues with finishing after a merge conflict or a --no-push."
+	echo
+	echo "Options:"
+	echo "--no-push"
+	echo "    Don't push the changes to $origin. This allows inspecting the merge locally."
+	echo "    It can later be continued with --continue."
+	echo
+	echo "<version>"
+	echo "    Version number of the release."
+	echo
+	echo "<msg>"
+	echo "    Message used for tag."
+	echo
+	echo "<name>"
+	echo "    Name of the topic branch (without prefix). If not specified the current branch"
+	echo "    is used."
+	echo
+	echo "<parentbranch>"
+	echo "    Name of the parent branch."
+	echo
+	echo "<featurebranch>"
+	echo "    Name of the feature branch (without prefix). If not specified the name of the"
+	echo "    current branch is used."
+	echo
+
+	exit $1
+}
+
+. "$(dirname "$0")/defs.sh"
+. "$(dirname "$0")/functions.sh"
+
+MAGIC_FILE="$(git rev-parse --git-dir)/GITFINISH_MERGE"
+
+# Writes the status about the current merge in our magic file.
+# $1 - kind; $2 - branch; $3 - version; $4 - prefix; $5 - mergebranch; $6 - parent; $7 - action
+writeStatus()
+{
+	git config -f "$MAGIC_FILE" finish.kind $1
+	git config -f "$MAGIC_FILE" finish.branch $2
+	git config -f "$MAGIC_FILE" finish.version $3
+	git config -f "$MAGIC_FILE" finish.prefix $4
+	git config -f "$MAGIC_FILE" finish.mergebranch $5
+	git config -f "$MAGIC_FILE" finish.parent $6
+	git config -f "$MAGIC_FILE" finish.action $7
+}
+
+abortIfBranchAhead()
+{
+	if [ $(git rev-list $origin/$1..$1 | wc -l) -gt 0 ]; then
+		echo "fatal: Your branch '$1' is ahead of '$origin/$1' by $(git rev-list $origin/$1..$1 | wc -l) commits"
+		echo "       Please push your changes in '$1' or reset it to '$origin/$1'."
+		exit 1
+	fi
+}
+
+function pushToRemote()
+{
+	writeStatus $kind $branch ${version:-0} $prefix $develop ${parent:-$master} "push"
+	if [ -z "$NOPUSH" ]; then
+		case "$1" in
+			"feature")
+				git push $origin $develop :$branch
+				;;
+			"release")
+				git push $origin $master $develop :$branch
+				git push $origin refs/tags/$2
+				;;
+			"hotfix")
+				git push $origin $parent $develop :$branch
+				git push $origin refs/tags/$2
+				;;
+		esac
+		rm "$MAGIC_FILE" &>/dev/null || true
+	fi
+}
+
+function mergeBranchIntoDevelop()
+{
+	git checkout $develop
+	writeStatus $kind $branch ${version:-0} $prefix $develop ${parent:-0} "merge"
+	git merge -m "Merge branch '$branch' into $develop" $branch
+	rm "$MAGIC_FILE" &>/dev/null || true
+}
+function mergeBranchIntoParent()
+{
+	local parent
+	parent=$1
+	git checkout $parent
+	writeStatus $kind $branch ${version:-0} $prefix $master ${parent:-0} "merge"
+	git merge -m "Merge branch '$branch' into $parent" $branch
+	rm "$MAGIC_FILE" &>/dev/null || true
+}
+
+function deleteBranch()
+{
+	local localBranch
+	localBranch=$1
+	writeStatus $kind $localBranch ${version:-0} $prefix $develop ${parent:-$master} "delete"
+	git branch -d $branch
+	rm "$MAGIC_FILE" &>/dev/null || true
+}
+
+if [ $# -lt 1 ]; then
+	echo "fatal: missing parameter"
+	usage 1
+fi
+
+# On Windows we want to use getopt in our directory since the other one
+# is broken
+if [ "$OSTYPE" = "msys" ]; then
+	GETOPT="$(dirname "$0")/getopt"
+else
+	GETOPT="getopt"
+fi
+
+ORIG_ARGS=("$@")
+OPTS=$($GETOPT -o hm: --long help --long continue --long no-push -n "$(basename "$0")" -- "$@")
+
+eval set -- "$OPTS"
+
+while true ; do
+	case "$1" in
+		-h|--help) usage 0;;
+		--continue) CONTINUE=1 ;;
+		--no-push) NOPUSH=1 ;;
+		-m) MSG="-m $2" ; shift ;;
+		--) shift; break;;
+	esac
+	shift
+done
+
+if __isDirty; then
+	echo "fatal: You have a dirty working directory. Aborting."
+	exit 1
+fi
+
+if [ -n "$CONTINUE" ]; then
+	if [ ! -f "$MAGIC_FILE" ]; then
+		echo "fatal: No branch finish in progress?"
+		exit 1
+	fi
+	kind=$(git config -f "$MAGIC_FILE" finish.kind)
+	prefix=$(git config -f "$MAGIC_FILE" finish.prefix)
+	mergebranch=$(git config -f "$MAGIC_FILE" finish.mergebranch)
+	version=$(git config -f "$MAGIC_FILE" finish.version)
+	branch=$(git config -f "$MAGIC_FILE" finish.branch)
+	parent=$(git config -f "$MAGIC_FILE" finish.parent)
+	action=$(git config -f "$MAGIC_FILE" finish.action)
+
+	# Delete magic file. The actions below will re-create it with the new status.
+	rm "$MAGIC_FILE" || true
+
+	case "$kind" in
+		"feature")
+			if [ "$action" = "merge" ]; then
+				deleteBranch $branch
+			fi
+
+			# do this last so that server is in a consistent state
+			pushToRemote $kind 0
+			;;
+		"release")
+			if [ "$action" = "merge" ]; then
+				if [ "$mergebranch" = "$master" ]; then
+					git tag -a $MSG $version
+					mergeBranchIntoDevelop
+				fi
+				deleteBranch $branch
+			fi
+			# do this last so that server is in a consistent state
+			pushToRemote $kind $version
+			;;
+		"hotfix")
+			if [ "$action" = "merge" ]; then
+				if [ "$mergebranch" != "$develop" ]; then
+					git tag -a $MSG $version
+					mergeBranchIntoDevelop
+				fi
+
+				deleteBranch $branch
+			fi
+
+			# do this last so that server is in a consistent state
+			pushToRemote $kind $version
+			;;
+	esac
+else
+	if [ -f "$MAGIC_FILE" ]; then
+		echo "fatal: File $(basename "$MAGIC_FILE") exists. Previous branch finish still in progress?"
+		exit 1
+	fi
+
+	kind=$1
+	shift
+
+	prefix=$(git config --get gitflow.prefix.$kind || echo $kind/)
+	case "$kind" in
+		"task")
+			$(dirname "$0")/git-finish-task "$@"
+			exit 0
+			;;
+		"feature")
+			if [ -n "$1" ]; then
+				branch=$prefix${1#$prefix}
+			else
+				branch=$(currentBranch)
+				if ! [[ $branch = ${prefix}* ]]; then
+					echo "fatal: please change to a feature branch or explictly specify branch to finish"
+					usage 1
+				fi
+			fi
+			;;
+		"release"|"hotfix")
+			if [ -z "$1" ]; then
+				echo "fatal: missing version number"
+				usage 1
+			fi
+			version=${1#$prefix}
+			branch=$prefix$version
+
+			parent=$master
+			if [ "$kind" = "hotfix" ]; then
+				if [ -z "$2" ]; then
+					echo "fatal: please specify the parent branch of this hotfix branch"
+					usage 1
+				fi
+				parent=$2
+			fi
+			;;
+		"--help"|"-?")
+			usage 0
+			;;
+		*)
+			echo "fatal: Unknown kind: '$1'."
+			usage 1
+			;;
+	esac
+
+	# Unfortunately there's no Gerrit command that we could use to check if we have permission to
+	# push a branch. Instead we check the group. That's a hack but better than no check. The group
+	# is only visible to admins and members of the group. And we don't want to do the expensive
+	# check when running unit tests.
+	if ! $unittest && ! ssh -p $GERRITPORT $gerritusername@$GERRIT gerrit ls-groups | grep -q "$GERRITGROUP"; then
+		echo "fatal: No permission to create $kind branch on Gerrit server"
+		exit 1
+	fi
+
+	if ! git branch | cut -c3- | grep -q "$branch\$"; then
+		echo "fatal: No local branch $branch."
+		exit 1
+	fi
+	if ! git ls-remote $origin | cut -f2 | grep -q "$branch\$"; then
+		echo "fatal: No remote branch $branch."
+		exit 1
+	fi
+
+	# One might wonder why we don't use "git pull --rebase" below and wonder about the order.
+	# Using rebase instead of pull --rebase has the benefit that it also works when the branch
+	# tracking isn't set up completely (as is the case when running the unit tests).
+	git fetch $origin
+	git checkout $branch
+	git rebase $origin/$branch
+	git checkout $master
+	git rebase $origin/$master
+	git checkout $develop
+	git rebase $origin/$develop
+
+	abortIfBranchAhead $branch
+	abortIfBranchAhead $develop
+	abortIfBranchAhead $master
+
+	case "$kind" in
+		"feature")
+			# merge into develop, delete branch
+			mergeBranchIntoDevelop
+			deleteBranch $branch
+			pushToRemote $kind $version
+			;;
+		"release")
+			# tag commit, merge into develop and master, delete branch
+			mergeBranchIntoParent $master
+			git tag -a $MSG $version
+			mergeBranchIntoDevelop
+			deleteBranch $branch
+			pushToRemote $kind $version
+			;;
+		"hotfix")
+			# tag commit, merge into develop and (master or support branch), delete branch
+			mergeBranchIntoParent $parent
+			git tag -a $MSG $version
+			mergeBranchIntoDevelop
+			deleteBranch $branch
+			pushToRemote $kind $version
+			;;
+	esac
+fi
+
+git config --unset remote.$origin.fetch "\+refs/heads/$branch:refs/remotes/origin/$branch" || true
+git config --unset remote.$origin.push "\+refs/heads/$branch:refs/for/$branch" || true
+
+# For reporting to the user we want $kind to start with an uppercase letter.
+# It would be nice to use Kind=${kind^} instead, unfortunately that's a bash-4 feature and so
+# doesn't work on Windows.
+Kind="$(echo ${kind:0:1} | tr '[a-z]' '[A-Z'])${kind:1}"
+
+echo
+echo "Summary of actions:"
+echo "- Latest objects have been fetched from '$origin'"
+echo "- $Kind branch has been back-merged into '$develop'"
+case "$kind" in
+	"release"|"hotfix")
+		echo "- $Kind branch has been merged into '$parent'"
+		echo "- The $kind was tagged '$version'"
+		echo "- $Kind branch '$branch' has been deleted"
+		;;
+	"feature")
+		echo "- $Kind branch '$branch' has been deleted"
+		;;
+esac
+
+if [ -z "$NOPUSH" ]; then
+	echo "- Merged branches have been pushed to '$origin'"
+else
+	echo
+	echo "Now, start reviewing the merged branches. If satisified finish with"
+	echo
+	echo "    git finish --continue"
+fi
+echo

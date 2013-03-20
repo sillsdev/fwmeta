@@ -1,0 +1,631 @@
+#!/bin/bash
+
+oneTimeSetUp()
+{
+	basedir=$(pwd)/../..
+	. ../functions.sh
+	unittest=1
+
+	dir=$(pwd)
+	tmpdir=$(mktempdir)
+	cd $tmpdir
+
+	git init -q --bare bareRepo
+	git clone -q bareRepo masterRepo &>/dev/null
+
+	cd masterRepo
+	touch file1
+	git add file1
+	git commit -q -m "Initial commit"
+	git checkout -q -b develop
+	touch file2
+	git add file2
+	git commit -q -m "Commit on develop"
+	git push -q origin --all &>/dev/null
+
+	cd ..
+	git clone -q bareRepo testingRepo &>/dev/null
+	cd testingRepo
+	git checkout -q develop > /dev/null
+	git checkout -q master > /dev/null
+	cd $dir
+
+	SUT=$basedir/fwmeta/git-finish
+}
+
+oneTimeTearDown()
+{
+	cd $HOME
+	rm -rf $tmpdir
+}
+
+setUp()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q master
+	git reset -q --hard origin/master
+	git checkout -q develop
+	git reset -q --hard origin/develop
+	git merge -q -s recursive -X theirs master &>/dev/null
+	git push -q origin develop &> /dev/null
+}
+
+deleteBranch()
+{
+	git branch | grep -q $1 && git branch -D $1 > /dev/null
+	git push -q origin :$1 &> /dev/null
+}
+
+tearDown()
+{
+	cd $tmpdir/testingRepo
+	git merge --abort &> /dev/null || true
+	git checkout -q master
+	for branch in $(git branch | grep "\(release\|support\|hotfix\)" | cut -c3-); do
+		deleteBranch $branch
+	done
+	for branch in $(git ls-remote origin 2>/dev/null | cut -f2 | grep "\(release\|support\|hotfix\)"); do
+		deleteBranch $branch
+	done
+	rm $(git rev-parse --git-dir)/GITFINISH_MERGE 2>/dev/null ||  true
+}
+
+exerciseSUT()
+{
+	$SUT "$@" -m "tagmessage"
+}
+
+# Returns true if the commit $1 or one of its parents is $2
+basedOnCommit()
+{
+	for commit in $(git rev-list --parents -n 1 $1); do
+		if [ "$commit" = "$2" ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+testNoParameters()
+{
+	cd $tmpdir/testingRepo
+	assertFalse "Didn't fail when called without parameters" "exerciseSUT"
+}
+
+testNoVersion()
+{
+	cd $tmpdir/testingRepo
+	assertFalse "Didn't fail when called without version number" "exerciseSUT release"
+}
+
+testDirtyWorkdir()
+{
+	cd $tmpdir/testingRepo
+	touch bla
+	git add bla
+	assertFalse "Didn't fail when called with dirty workdir" "exerciseSUT release"
+}
+
+testReleaseBranch()
+{
+	version=1.1
+	branch=release/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	touch file3
+	git add file3
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+	assertTrue "Failed finishing branch" "exerciseSUT release $version"
+	assertFalse "Didn't delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertTrue "master branch doesn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Didn't delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Didn't create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Didn't create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+testReleaseWithoutLocalBranch()
+{
+	branch=release/1.2
+	cd $tmpdir/bareRepo
+	git branch $branch develop
+	cd $tmpdir/testingRepo
+	assertFalse "Didn't fail when called without having local branch" "exerciseSUT release 1.2"
+}
+
+testReleaseWithoutRemoteBranch()
+{
+	branch=release/1.3
+	cd $tmpdir/testingRepo
+	git branch $branch develop
+	assertFalse "Didn't fail when called without having remote branch" "exerciseSUT release 1.3"
+}
+
+testFeatureWrongBranch()
+{
+	cd $tmpdir/testingRepo
+	git checkout -q -b 123 develop
+	assertFalse "Didn't fail when called from wrong branch" "exerciseSUT feature"
+}
+
+testFailsIfAheadOnRelease()
+{
+	branch=release/1.4
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	git push -q origin $branch &>/dev/null
+	touch file4
+	git add file4
+	git commit -q -m "Commit on $branch"
+	assertFalse "Didn't fail when ahead of remote" "exerciseSUT release 1.4"
+}
+
+testFailsIfAheadOnDevelop()
+{
+	branch=release/1.5
+	cd $tmpdir/testingRepo
+	git branch $branch develop
+	git push -q origin $branch &>/dev/null
+	git checkout -q develop
+	touch file5
+	git add file5
+	git commit -q -m "Commit on develop"
+	git checkout -q $branch
+	assertFalse "Didn't fail when ahead of remote" "exerciseSUT release 1.5"
+}
+
+testFailsIfAheadOnMaster()
+{
+	branch=release/1.6
+	cd $tmpdir/testingRepo
+	git branch $branch develop
+	git push -q origin $branch &>/dev/null
+	git checkout -q master
+	touch file6
+	git add file6
+	git commit -q -m "Commit on master"
+	git checkout -q $branch
+	assertFalse "Didn't fail when ahead of remote" "exerciseSUT release 1.6"
+}
+
+testRebaseIfBehindOnRelease()
+{
+	version=1.7
+	branch=release/$version
+	cd $tmpdir/bareRepo
+	git branch $branch develop
+	cd $tmpdir/testingRepo
+	git fetch -q origin
+	git checkout -q $branch &>/dev/null
+	cd $tmpdir/masterRepo
+	git fetch -q origin
+	git checkout -q $branch &>/dev/null
+	touch file7
+	git add file7
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	cd $tmpdir/testingRepo
+	assertTrue "Failed finishing branch" "exerciseSUT release $version"
+}
+
+testFailsWithMergeConflictOnDevelop()
+{
+	# develop and release branch have conflicting changes
+	version=1.8
+	branch=release/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	echo "$branch line" >> file
+	git add file
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+	git checkout -q develop
+	echo "develop line" >> file
+	git add file
+	git commit -q -m "Change in develop"
+	git push -q origin develop &> /dev/null
+	assertFalse "Didn't fail when getting merge conflicts" "exerciseSUT release $version"
+}
+
+testFailsToContinueWithoutConflicts()
+{
+	version=1.9
+	branch=release/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	git push -q origin $branch &>/dev/null
+	assertFalse "Didn't fail continuing without conflicts" "exerciseSUT --continue"
+}
+
+testReleaseContinueFromMergeConflictOnDevelop()
+{
+	# develop and release branch have conflicting changes
+	version=1.10
+	branch=release/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	echo "$branch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	git checkout -q develop
+	echo "develop line" >> file$version
+	git add file$version
+	git commit -q -m "Change in develop"
+	git push -q origin develop &> /dev/null
+
+	exerciseSUT release $version &> /dev/null
+
+	git add file$version
+	git commit -q -m "Merged"
+
+	assertTrue "Failed continuing from merge conflict" "exerciseSUT --continue"
+	assertFalse "Didn't delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertTrue "master branch doesn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Didn't delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Didn't create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Didn't create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+testReleaseContinueFromMergeConflictOnMaster()
+{
+	# master and release branch have conflicting changes
+	version=1.11
+	branch=release/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	echo "$branch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	git checkout -q master
+	echo "master line" >> file$version
+	git add file$version
+	git commit -q -m "Change in master"
+	git push -q origin master &> /dev/null
+
+	exerciseSUT release $version &> /dev/null
+
+	git add file$version
+	git commit -q -m "Merged"
+
+	assertTrue "Failed continuing from merge conflict" "exerciseSUT --continue"
+	assertFalse "Didn't delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertTrue "master branch doesn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Didn't delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Didn't create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Didn't create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+testReleaseContinueFromMergeConflictOnBoth()
+{
+	# master and develop have conflicting changes with release branch
+	version=1.12
+	branch=release/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	echo "$branch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	git checkout -q master
+	echo "master line" >> file$version
+	git add file$version
+	git commit -q -m "Change in master"
+	git push -q origin master &> /dev/null
+
+	git checkout -q develop
+	echo "develop line" >> file$version
+	git add file$version
+	git commit -q -m "Change in develop"
+	git push -q origin develop &> /dev/null
+
+	assertFalse "Didn't fail with conflicts" "exerciseSUT release $version"
+
+	git add file$version
+	git commit -q -m "Merged"
+
+	assertFalse "Didn't fail continuing without conflicts" "exerciseSUT --continue"
+
+	git add file$version
+	git commit -q -m "Merged"
+
+	assertTrue "Failed continuing from merge conflict" "exerciseSUT --continue"
+	assertFalse "Didn't delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertTrue "master branch doesn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Didn't delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Didn't create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Didn't create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+testFeatureBranch()
+{
+	version=ABC-1
+	branch=feature/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	touch file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	assertTrue "Failed finishing branch" "exerciseSUT feature"
+	assertFalse "Failed to delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertFalse "master branch shouldn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Failed to delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertFalse "Created local tag" "git tag -l | grep -q "^$version\$""
+	assertFalse "Created tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+}
+
+testFeatureContinueFromMergeConflictOnDevelop()
+{
+	# develop and feature branch have conflicting changes
+	version=ABC-2
+	branch=feature/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	echo "$branch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	git checkout -q develop
+	echo "develop line" >> file$version
+	git add file$version
+	git commit -q -m "Change in develop"
+	git push -q origin develop &> /dev/null
+
+	git checkout -q $branch
+
+	assertFalse "Didn't fail on merge conflict" "exerciseSUT feature"
+
+	git add file$version
+	git commit -q -m "Merged" &> /dev/null
+
+	assertTrue "Failed continuing from merge conflict" "exerciseSUT --continue"
+	assertFalse "Failed to delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertFalse "master branch shouldn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Failed to delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertFalse "Created local tag" "git tag -l | grep -q "^$version\$""
+	assertFalse "Created tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+}
+
+testFeatureBranchExplicit()
+{
+	version=ABC-3
+	branch=feature/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	touch file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	git checkout -q develop
+
+	assertTrue "Failed finishing branch" "exerciseSUT feature $version"
+	assertFalse "Failed to delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertFalse "master branch shouldn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Failed to delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertFalse "Created local tag" "git tag -l | grep -q "^$version\$""
+	assertFalse "Created tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+}
+
+testFeatureBranchNonexisting()
+{
+	version=ABC-4
+	branch=feature/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	touch file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	assertFalse "Failed finishing branch" "exerciseSUT feature ${version}-X"
+}
+
+testHotfixBranch()
+{
+	version=1.11.1
+	branch=hotfix/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch master
+	touch file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	assertTrue "Failed finishing branch" "exerciseSUT hotfix $version master"
+	assertFalse "Failed to delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertTrue "master branch doesn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Failed to delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Failed to create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Failed to create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+testHotfixContinueFromMergeConflictOnDevelop()
+{
+	version=1.11.2
+	branch=hotfix/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch master
+	echo "$branch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	git checkout -q develop
+	echo "develop line" >> file$version
+	git add file$version
+	git commit -q -m "Change in develop"
+	git push -q origin develop &> /dev/null
+
+	assertFalse "Didn't fail on merge conflict" "exerciseSUT hotfix $version master"
+
+	git add file$version
+	git commit -q -m "Merged" &> /dev/null
+
+	assertTrue "Failed finishing branch" "exerciseSUT --continue"
+	assertFalse "Failed to delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertTrue "master branch doesn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Failed to delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Failed to create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Failed to create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+testHotfixBranchBasedOnSupportBranch()
+{
+	version=1.1.3.1
+	branch=hotfix/$version
+	supportBranch=support/1.1.3
+	cd $tmpdir/testingRepo
+	git checkout -q -b $supportBranch master
+	echo "$supportBranch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $supportBranch"
+	git push -q origin $supportBranch &>/dev/null
+
+	git checkout -q -b $branch $supportBranch
+	echo "$branch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	assertTrue "Failed finishing branch" "exerciseSUT hotfix $version $supportBranch"
+	assertFalse "Failed to delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertFalse "master branch shouldn't include change" "basedOnCommit master $releaseCommit"
+	assertTrue "support branch doesn't include change" "basedOnCommit $supportBranch $releaseCommit"
+	assertFalse "Failed to delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Failed to create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Failed to create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push support branch:" "$(git rev-parse $supportBranch)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/$supportBranch | cut -f1)"
+}
+
+testHotfixBranchBasedOnSupportBranchContiueFromMergeConflict()
+{
+	version=1.1.3.2
+	branch=hotfix/$version
+	supportBranch=support/1.1.3
+	cd $tmpdir/testingRepo
+	git checkout -q develop
+	echo "develop line" >> file$version
+	git add file$version
+	git commit -q -m "Change in develop"
+	git push -q origin develop &> /dev/null
+
+	git checkout -q -b $supportBranch master
+	echo "$supportBranch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $supportBranch"
+	git push -q origin $supportBranch &>/dev/null
+
+	git checkout -q -b $branch $supportBranch
+	echo "$branch line" >> file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	assertFalse "Didn't fail on merge conflict" "exerciseSUT hotfix $version $supportBranch"
+
+	git add file$version
+	git commit -q -m "Merged" &> /dev/null
+
+	assertTrue "Failed finishing branch" "exerciseSUT --continue"
+	assertFalse "Failed to delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertFalse "master branch shouldn't include change" "basedOnCommit master $releaseCommit"
+	assertTrue "support branch doesn't include change" "basedOnCommit $supportBranch $releaseCommit"
+	assertFalse "Failed to delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Failed to create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Failed to create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push support branch:" "$(git rev-parse $supportBranch)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/$supportBranch | cut -f1)"
+}
+
+testNoPush()
+{
+	version=1.13
+	branch=release/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	touch file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	assertTrue "Failed finishing branch" "exerciseSUT --no-push release $version"
+	assertFalse "Didn't delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertTrue "master branch doesn't include change" "basedOnCommit master $releaseCommit"
+	assertTrue "Deleted branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Didn't create local tag" "git tag -l | grep -q "^$version\$""
+	assertFalse "Created tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertNotEquals "Pushed develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertNotEquals "Pushed master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+testContinuePush()
+{
+	version=1.14
+	branch=release/$version
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	touch file$version
+	git add file$version
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+	exerciseSUT --no-push release $version &> /dev/null
+
+	assertTrue "Failed finishing branch" "exerciseSUT --continue"
+	assertFalse "Didn't delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Didn't create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+. shunit2/src/shunit2
