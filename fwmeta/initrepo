@@ -513,6 +513,7 @@ if [ ! $RECURSIVE ]; then
 		debug "Copying script to temp directory: $tmpdir"
 		mkdir -p "$tmpdir"
 		cp "$SRC" "$DST"
+		cp "$(dirname "$0")/defs.sh" "$tmpdir"
 		exec "$DST" --basedir "$basedir" "${ORIG_ARGS[@]}"
 	else
 		debug "Executing script in temp directory: $tmpdir"
