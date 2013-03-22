@@ -110,12 +110,12 @@ clonerepo()
 	if [ "$reset" = "1" ]; then
 		git config --unset fwinit.initialized || true
 		git config --unset fwinit.aliasversion || true
-	fi
 
-	# Remove all fetch and push statements for origin so that we can add
-	# them again
-	git config --unset-all remote.origin.fetch || true
-	git config --unset-all remote.origin.push  || true
+		# Remove all fetch and push statements for origin so that we can add
+		# them again
+		git config --unset-all remote.origin.fetch || true
+		git config --unset-all remote.origin.push  || true
+	fi
 
 	# update settings for notes
 	git config notes.rewrite.amend true
@@ -128,8 +128,8 @@ clonerepo()
 	for branch in $branchlist; do
 		# only add existing branches
 		if [ $(git ls-remote origin refs/heads/$branch | wc -l) -gt 0 ]; then
-			git config --add remote.origin.fetch "+refs/heads/$branch:refs/remotes/origin/$branch"
-			git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
+			git config --get remote.origin.fetch $branch || git config --add remote.origin.fetch "+refs/heads/$branch:refs/remotes/origin/$branch"
+			git config --get remote.origin.push $branch || git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
 			git config branch.$branch.rebase true
 			git config branch.$branch.remote origin
 			git config branch.$branch.merge refs/heads/$branch
