@@ -128,8 +128,8 @@ clonerepo()
 	for branch in $branchlist; do
 		# only add existing branches
 		if [ $(git ls-remote origin refs/heads/$branch | wc -l) -gt 0 ]; then
-			git config --get remote.origin.fetch $branch || git config --add remote.origin.fetch "+refs/heads/$branch:refs/remotes/origin/$branch"
-			git config --get remote.origin.push $branch || git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
+			git config --get remote.origin.fetch $branch > /dev/null || git config --add remote.origin.fetch "+refs/heads/$branch:refs/remotes/origin/$branch"
+			git config --get remote.origin.push $branch > /dev/null || git config --add remote.origin.push "+refs/heads/$branch:refs/for/$branch"
 			git config branch.$branch.rebase true
 			git config branch.$branch.remote origin
 			git config branch.$branch.merge refs/heads/$branch
