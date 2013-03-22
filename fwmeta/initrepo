@@ -8,7 +8,7 @@ set -e
 # Version of the alias section in the config file. Increment the number each time you make some
 # changes to setting the alias/guitool section below so that the config gets updated when this
 # script is run.
-THISALIASVERSION=17
+THISALIASVERSION=18
 
 # Display help
 help()
@@ -357,7 +357,7 @@ initrepo()
 		git config guitool.0_Feature/0_Start.argprompt "Feature name (JIRA number)"
 		git config "guitool.0_Feature/1_Submit for Code Review.cmd" 'git review'
 		git config guitool.0_Feature/2_Finish.cmd 'GIT_EDITOR=$(git config --get gui.editor) git finish task'
-		git config guitool.0_Feature/Create.cmd 'git start release $ARGS'
+		git config guitool.0_Feature/Create.cmd 'git start feature $ARGS'
 		git config guitool.0_Feature/Create.argprompt "Name of the long-lived feature branch (without feature/ prefix)"
 		git config guitool.0_Feature/Release.cmd 'git finish feature'
 		git config guitool.0_Feature/Release.title "Close shared feature branch"
