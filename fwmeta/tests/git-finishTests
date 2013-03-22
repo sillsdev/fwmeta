@@ -628,4 +628,74 @@ testContinuePush()
 	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
 }
 
+testReleaseAlphaVersion()
+{
+	baseversion=1.15
+	version=$baseversion-alpha
+	branch=release/$baseversion
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	touch file$baseversion
+	git add file$baseversion
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	assertTrue "Failed finishing branch" "exerciseSUT --keep release $version"
+	assertTrue "Deleted branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertFalse "master branch includes change" "basedOnCommit master $releaseCommit"
+	assertTrue "Deleted branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Didn't create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Didn't create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+}
+
+testReleaseWithDifferentVersion()
+{
+	baseversion=1.16
+	version=$baseversion-alpha
+	branch=release/$baseversion
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch develop
+	touch file$baseversion
+	git add file$baseversion
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+	assertTrue "Failed finishing branch" "exerciseSUT release $version"
+	assertFalse "Didn't delete branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertTrue "master branch doesn't include change" "basedOnCommit master $releaseCommit"
+	assertFalse "Didn't delete branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Didn't create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Didn't create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+	assertEquals "Didn't push master branch:" "$(git rev-parse master)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/master | cut -f1)"
+}
+
+testHotfixAlphaVersion()
+{
+	baseversion=1.17.1
+	version=$baseversion-alpha
+	branch=hotfix/$baseversion
+	cd $tmpdir/testingRepo
+	git checkout -q -b $branch master
+	touch file$baseversion
+	git add file$baseversion
+	git commit -q -m "Commit on $branch"
+	git push -q origin $branch &>/dev/null
+	releaseCommit=$(git rev-parse HEAD)
+
+	assertTrue "Failed finishing branch" "exerciseSUT --keep hotfix $version master"
+	assertTrue "Deleted branch" "git branch | grep -q $branch"
+	assertTrue "develop branch doesn't include change" "basedOnCommit develop $releaseCommit"
+	assertFalse "master branch includes change" "basedOnCommit master $releaseCommit"
+	assertTrue "Deleted branch on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/heads/$branch\$""
+	assertTrue "Failed to create local tag" "git tag -l | grep -q "^$version\$""
+	assertTrue "Failed to create tag on remote" "git ls-remote origin 2>/dev/null | cut -f2 | grep -q "refs/tags/$version\$""
+	assertEquals "Didn't push develop branch:" "$(git rev-parse develop)" "$(git ls-remote origin 2>/dev/null | grep refs/heads/develop | cut -f1)"
+}
+
+
 . shunit2/src/shunit2
