@@ -281,7 +281,7 @@ initrepo()
 			giteditor="$(git config --get fwinit.editor || true)"
 			gitguieditor="$(git config --get fwinit.guieditor || true)"
 			if [ "$(uname)" = "Linux" ]; then
-				gitguieditor="${gitguieditor:-gedit -w}"
+				gitguieditor="${gitguieditor:-gedit -s}"
 			else
 				gitguieditor="${gitguieditor:-$(dirname $0)/winedit.sh}"
 			fi
