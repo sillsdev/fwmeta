@@ -135,7 +135,7 @@ clonerepo()
 			git config branch.$branch.merge refs/heads/$branch
 		fi
 	done
-	git fetch origin
+	git fetch -p origin
 
 	# we need the master and develop branches
 	if ! git branch | grep -q master; then
