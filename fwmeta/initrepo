@@ -125,6 +125,7 @@ clonerepo()
 	git config --add remote.origin.fetch "+refs/notes/*:refs/notes/*"
 
 	# fetch branches and setup tracking branch
+	set -f # Disable filename expansion (globbing) in case any branch names contain wildcards
 	for branch in $branchlist; do
 		# only add existing branches
 		if [ $(git ls-remote origin refs/heads/$branch | wc -l) -gt 0 ]; then
@@ -135,6 +136,7 @@ clonerepo()
 			git config branch.$branch.merge refs/heads/$branch
 		fi
 	done
+	set +f # Re-enable filename expansion
 	git fetch -p origin
 
 	# we need the master and develop branches
