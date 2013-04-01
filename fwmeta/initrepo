@@ -139,10 +139,10 @@ clonerepo()
 
 	# we need the master and develop branches
 	if ! git branch | grep -q master; then
-		git checkout -q master
+		git checkout -q -t origin/master
 	fi
 	if ! git branch | grep -q develop; then
-		git checkout -q develop
+		git checkout -q -t origin/develop
 	fi
 }
 
