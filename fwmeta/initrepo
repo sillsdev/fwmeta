@@ -488,7 +488,7 @@ while true ; do
 done
 debug "***************\nARGS=${ORIG_ARGS[@]}"
 
-defaultbranches="master develop"
+defaultbranches="master develop release/* support/*"
 
 orig_dir="$(pwd)"
 debug "basedir=$basedir, originally: $orig_dir"
