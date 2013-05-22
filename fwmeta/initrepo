@@ -518,7 +518,7 @@ if [ ! $RECURSIVE ]; then
 	else
 		debug "Executing script in temp directory: $tmpdir"
 		if [ -d ".git" ] && git remote | grep -q origin ; then
-			git fetch origin
+			git fetch origin || echo "Continuing anyway..." >&2
 			# see http://stackoverflow.com/a/2659808
 			if __isDirty ; then
 				echo "WARNING: You have a dirty working directory - not updating $FWMETAREPO"
