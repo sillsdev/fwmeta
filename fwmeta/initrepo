@@ -110,11 +110,6 @@ clonerepo()
 	if [ "$reset" = "1" ]; then
 		git config --unset fwinit.initialized || true
 		git config --unset fwinit.aliasversion || true
-
-		# Remove all fetch and push statements for origin so that we can add
-		# them again
-		git config --unset-all remote.origin.fetch || true
-		git config --unset-all remote.origin.push  || true
 	fi
 
 	# update settings for notes
@@ -123,6 +118,10 @@ clonerepo()
 	git config notes.rewriteRef "refs/notes/*"
 	git config notes.displayRef "refs/notes/*"
 	git config --add remote.origin.fetch "+refs/notes/*:refs/notes/*"
+
+	# Remove all fetch and push statements for origin so that we can add them again
+	git config --unset-all remote.origin.fetch || true
+	git config --unset-all remote.origin.push  || true
 
 	# fetch branches and setup tracking branch
 	set -f # Disable filename expansion (globbing) in case any branch names contain wildcards
