@@ -603,7 +603,7 @@ if [ -z "$repolist" ]; then
 		echo -e "${_bold}Available repos:${_normal} $(getAllReposForPlatform)"
 		defaultlist="FieldWorks FwSampleProjects"
 		if [ "$(platform)" = "Linux" ]; then
-			defaultlist+=" mono mono-basic gtk-sharp libgdiplus libcom"
+			defaultlist+=" mono mono-basic mono-calgary gtk-sharp libgdiplus libcom"
 		fi
 		if [ "$modify" = 1 ]; then
 			echo -e "${_bold}Default repos:${_normal} $defaultlist"
