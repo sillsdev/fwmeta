@@ -284,7 +284,7 @@ initrepo()
 			if [ "$(uname)" = "Linux" ]; then
 				gitguieditor="${gitguieditor:-gedit -s}"
 			else
-				gitguieditor="${gitguieditor:-$(dirname $0)/winedit.sh}"
+				gitguieditor="${gitguieditor:-$(dirname $0)/ZEdit.exe}"
 			fi
 			giteditor="${giteditor:-$gitguieditor}"
 			git config core.editor "$giteditor"
