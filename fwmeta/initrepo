@@ -241,7 +241,7 @@ initrepo()
 			# username
 			if hash curl 2>/dev/null; then
 				debug "Getting hook: curl -o .git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg"
-				curl -o .git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg
+				curl -k -o .git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg
 			elif hash wget 2>/dev/null; then
 				debug "Getting hook: wget --output-document=.git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg"
 				wget --output-document=.git/hooks/commit-msg1_add-change-id https://$GERRIT/tools/hooks/commit-msg
