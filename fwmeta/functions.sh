@@ -10,9 +10,7 @@ readdefault()
 	# $1: prompt
 	# $2: default value
 
-	if [ "$TERM" == "dumb" ]; then
-		echo -n -e "${_bold}$1${_normal} ($2): "
-	else
+	if [ "$TERM" != "dumb" ]; then
 		echo -n -e "${_bold}$1${_normal} ($2): " > /dev/tty
 	fi
 	read tmp
