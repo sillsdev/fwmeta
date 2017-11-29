@@ -10,9 +10,13 @@ readdefault()
 	# $1: prompt
 	# $2: default value
 
-	echo -n -e "${_bold}$1${_normal} ($2): " > /dev/tty
-	read tmp
-	echo "${tmp:-$2}"
+	if [ "$TERM" == "dumb" ]; then
+		echo $2
+	else
+		echo -n -e "${_bold}$1${_normal} ($2): " > /dev/tty
+		read tmp
+		echo "${tmp:-$2}"
+	fi
 }
 
 fullname()
