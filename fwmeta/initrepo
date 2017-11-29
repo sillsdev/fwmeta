@@ -27,6 +27,8 @@ Options:\
 \n         Display this help screen.
 \n    -v,--version\
 \n         Display the version number.
+\n    --shallow\
+\n         Clone repositories without history.
 \n    --basedir <path>\
 \n         Path to the toplevel directory of the fwmeta repo.\
 \n         Mainly used internally.
@@ -136,7 +138,7 @@ clonerepo()
 		fi
 	done
 	set +f # Re-enable filename expansion
-	git fetch -p origin
+	git fetch $shallow -p origin
 
 	# we need the master and develop branches
 	if ! git branch | grep -q master; then
@@ -466,7 +468,7 @@ fi
 
 ORIG_ARGS=("$@")
 OPTS=$($GETOPT -o hvrm --long help --long debug --long recursive --long reset --long modify \
-	--long version --long basedir: --long running-tests -n "$(basename "$0")" -- "$@")
+	--long version --long shallow --long basedir: --long running-tests -n "$(basename "$0")" -- "$@")
 
 eval set -- "$OPTS"
 
@@ -478,6 +480,7 @@ while true ; do
 		-v|--version) showVersion ; exit 0;;
 		-r|--reset) reset=1 ;;
 		-m|--modify) modify=1 ;;
+		--shallow) shallow='--depth=1' ;;
 		--basedir) basedir=$2 ; shift ;;
 		--running-tests) return 0;;
 		--) shift; break;;
