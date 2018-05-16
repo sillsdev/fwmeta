@@ -155,7 +155,7 @@ case "$kind" in
 	"release"|"hotfix"|"support")
 		echo "Follow-up actions:"
 		echo "- Bump the version number now! (FieldWorks/Src/MasterVersionInfo.txt)"
-		echo "- Create new '$kind' branches in other repos (FieldWorks, FwDebian, FwInstaller)"
+		echo "- Create new '$kind' branches in other repos (FieldWorks, FwDebian, PatchableInstaller)"
 		echo "- Start committing bug fixes"
 		echo "- When done, run:"
 		;;
