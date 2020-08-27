@@ -82,7 +82,7 @@ testReviewReleaseFeature()
 	cd $tmpdir/workRepo
 	git checkout -q "feature/ABC"
 	assertTrue "Failed on release feature" "exerciseSUT"
-	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/release/123/ABC ]"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/release/123%topic=ABC ]"
 }
 
 testExplicitTargetBranch()
@@ -98,7 +98,7 @@ testExplicitTargetBranchAndTopic()
 	cd $tmpdir/workRepo
 	git checkout -q "feature/ABC"
 	assertTrue "Failed with explicit target branch and different topic" "exerciseSUT def ghi"
-	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/def/ghi ]"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/def%topic=ghi ]"
 }
 
 testNormalFeature()
@@ -106,7 +106,7 @@ testNormalFeature()
 	cd $tmpdir/workRepo
 	git checkout -q feature/XYZ
 	assertTrue "Failed on normal feature" "exerciseSUT"
-	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/develop/XYZ ]"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/develop%topic=XYZ ]"
 }
 
 testNormalFeatureOnLongLivedBranch()
@@ -114,7 +114,7 @@ testNormalFeatureOnLongLivedBranch()
 	cd $tmpdir/workRepo
 	git checkout -q "feature/def"
 	assertTrue "Failed on normal feature" "exerciseSUT"
-	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/feature/123/def ]"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/feature/123%topic=def ]"
 }
 
 testDetachedHead()
@@ -126,7 +126,7 @@ testDetachedHead()
 	git checkout -q HEAD^
 
 	assertTrue "Failed on normal feature" "exerciseSUT"
-	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/develop/XYZ ]"
+	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/develop%topic=XYZ ]"
 }
 
 . shunit2/src/shunit2

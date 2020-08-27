@@ -36,8 +36,8 @@ if [ -z "$branch" ]; then
 	branch=develop
 fi
 
-# prepend topic with / if set
-topic=${topic:+/$topic}
+# prepend topic with %topic= if set
+topic=${topic:+%topic=$topic}
 # strip things like ~1
 topic="${topic%\~*}"
 
