@@ -27,7 +27,7 @@ do
 	LEN=$(echo "$LINE" | tr -d "\r\n" | wc -c) # don't count \r\n
 	case "$COUNT" in
 		1)
-			if [ $(cat "$1" | grep --invert-match -E "^#" | wc -l) -gt 1 ]; then
+			if [ $(cat "$1" | sed '/^Change-Id: /d;/^\s*$/d' | wc -l) -gt 1 ]; then
 				THIS_LINE_LEN=$FIRSTLINE_LEN
 				MSG="The first line (subject) should be no more than $FIRSTLINE_LEN characters."
 			else
