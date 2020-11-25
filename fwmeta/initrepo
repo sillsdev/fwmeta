@@ -256,7 +256,7 @@ initrepo()
 			# Other FW repos. Get hook from fwmeta.
 			cp "$basedir/.git/hooks/commit-msg1_add-change-id" .git/hooks/
 		fi
-		cp "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
+		cp -f "$basedir/fwmeta/hooks/check-commit-message" .git/hooks/commit-msg0_check-message
 		cp -f "$basedir/fwmeta/hooks/pre-commit" .git/hooks/
 		cp -f "$basedir/fwmeta/hooks/commit-msg" .git/hooks/
 		# make it less likely that user replaces it accidentally
