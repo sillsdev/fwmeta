@@ -9,9 +9,9 @@
 #    path/to/fwmeta/create-mirror.sh
 #
 # To use the mirror:
-#    git clone git://github.com/sillsdev/fwmeta.git fwrepo
+#    git clone https://github.com/sillsdev/fwmeta.git fwrepo
 #    cd fwrepo
-#    git config --global url.file:///path/to/mirror/.insteadOf git://github.com/sillsdev/
+#    git config --global url.file:///path/to/mirror/.insteadOf https://github.com/sillsdev/
 #    fwmeta/initrepo # Initial clone
 #    git config --global --unset url.file:///path/to/mirror/.insteadOf
 #    fwmeta/initrepo # Update to latest

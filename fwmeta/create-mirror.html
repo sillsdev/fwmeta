@@ -27,18 +27,18 @@
       </li>
       <li>
         <p>Run the following command in a terminal:</p>
-        <pre>git config --global url.file://<i>MOUNTPOINT</i>/.insteadOf git://github.com/sillsdev/</pre>
+        <pre>git config --global url.file://<i>MOUNTPOINT</i>/.insteadOf https://github.com/sillsdev/</pre>
         <p>If <i>MOUNTPOINT</i> was <tt>/media/gerrit.lsdev.sil.org</tt>, for example, you would use:</p>
-        <pre>git config --global url.file:///media/gerrit.lsdev.sil.org/.insteadOf git://github.com/sillsdev/</pre>
+        <pre>git config --global url.file:///media/gerrit.lsdev.sil.org/.insteadOf https://github.com/sillsdev/</pre>
         <p>If <i>MOUNTPOINT</i> was <tt>D:</tt>, for example, you would use:</p>
-        <pre>git config --global url.file:///d/.insteadOf git://github.com/sillsdev/</pre>
+        <pre>git config --global url.file:///d/.insteadOf https://github.com/sillsdev/</pre>
         <p>Note the <b>three</b> slashes after <tt>file:</tt></p>
         <p>Also note that git doesn't see newly-inserted drives until you close all git windows.</p>
       </li>
       <li>
         <p>Follow the <q>Getting Started</q> instructions, which are:</p>
         <pre>
-git clone git://github.com/sillsdev/fwmeta.git fwrepo
+git clone https://github.com/sillsdev/fwmeta.git fwrepo
 cd fwrepo
 fwmeta/initrepo</pre>
       </li>
