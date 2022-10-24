@@ -149,16 +149,8 @@ if [ $# -lt 1 ]; then
 	usage 1
 fi
 
-# On Windows we want to use getopt in our directory since the other one
-# is broken
-if [ "$OSTYPE" = "msys" ]; then
-	GETOPT="$(dirname "$0")/getopt"
-else
-	GETOPT="getopt"
-fi
-
 ORIG_ARGS=("$@")
-OPTS=$($GETOPT -o hm: --long help --long continue --long no-push --long keep -n "$(basename "$0")" -- "$@")
+OPTS=$(getopt -o hm: --long help --long continue --long no-push --long keep -n "$(basename "$0")" -- "$@")
 
 eval set -- "$OPTS"
 

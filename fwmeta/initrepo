@@ -458,16 +458,8 @@ initAllRepos()
 }
 
 basedir="${basedir:-$(getfwmetadirBootStrap)}"
-# On Windows we want to use getopt in our directory since the other one
-# is broken
-if [ "$OSTYPE" = "msys" ]; then
-	GETOPT="$basedir/$TOOLSDIR/getopt"
-else
-	GETOPT="getopt"
-fi
-
 ORIG_ARGS=("$@")
-OPTS=$($GETOPT -o hvrm --long help --long debug --long recursive --long reset --long modify \
+OPTS=$(getopt -o hvrm --long help --long debug --long recursive --long reset --long modify \
 	--long version --long shallow --long basedir: --long running-tests -n "$(basename "$0")" -- "$@")
 
 eval set -- "$OPTS"

@@ -124,16 +124,8 @@ cd "$basedir"
 
 . "$basedir/$TOOLSDIR/functions.sh"
 
-# On Windows we want to use getopt in our directory since the other one
-# is broken
-if [ "$OSTYPE" = "msys" ]; then
-	GETOPT="$basedir/$TOOLSDIR/getopt"
-else
-	GETOPT="getopt"
-fi
-
 ORIG_ARGS=("$@")
-OPTS=$($GETOPT -o hv --long help --long debug --long version --long alternate-url: -n "$(basename "$0")" -- "$@")
+OPTS=$(getopt -o hv --long help --long debug --long version --long alternate-url: -n "$(basename "$0")" -- "$@")
 
 eval set -- "$OPTS"
 
