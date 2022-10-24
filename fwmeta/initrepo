@@ -139,14 +139,6 @@ clonerepo()
 	done
 	set +f # Re-enable filename expansion
 	git fetch $shallow -p origin
-
-	# we need the master and develop branches
-	if ! git branch | grep -q master; then
-		git checkout -q -t origin/master
-	fi
-	if ! git branch | grep -q develop; then
-		git checkout -q -t origin/develop
-	fi
 }
 
 # Initialize git repo $1.
