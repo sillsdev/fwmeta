@@ -124,4 +124,4 @@ testGetRepoForDir_NonExisting()
 	assertNull "Found a repo for directory outside of any repo" "$(getRepoForDir /tmp)"
 }
 
-. shunit2/src/shunit2
+. shunit2/shunit2

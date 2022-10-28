@@ -129,4 +129,4 @@ testDetachedHead()
 	assertTrue "Didn't push expected values" "[ -f $tmpdir/bareRepo/refs/for/develop%topic=XYZ ]"
 }
 
-. shunit2/src/shunit2
+. shunit2/shunit2

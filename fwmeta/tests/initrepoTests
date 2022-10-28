@@ -229,4 +229,4 @@ testInitInvisibleSubmodules_SubSpecified()
 	assertTrue "Didn't fetch sub2" "[ -f "$tmpdir/master/dir2/file2" ]"
 }
 
-. shunit2/src/shunit2
+. shunit2/shunit2

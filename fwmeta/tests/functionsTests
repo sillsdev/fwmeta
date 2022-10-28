@@ -92,4 +92,4 @@ testGetParentBranch()
 	assertEquals "Didn't extract parent" "release/123" "$(getParentBranch feature/abc)"
 }
 
-. shunit2/src/shunit2
+. shunit2/shunit2

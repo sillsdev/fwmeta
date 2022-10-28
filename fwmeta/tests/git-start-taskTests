@@ -217,4 +217,4 @@ testDevelopWhenOnReleaseFeatureBranch()
 	assertEquals "Didn't set parent branch:" "origin/develop" "$(getCurrentParentBranch)"
 }
 
-. shunit2/src/shunit2
+. shunit2/shunit2

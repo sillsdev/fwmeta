@@ -309,4 +309,4 @@ testExplicitParent()
 	assertFalse "Didn't delete feature branch" "git branch | grep -q $topic"
 }
 
-. shunit2/src/shunit2
+. shunit2/shunit2

@@ -54,4 +54,4 @@ testNameSpecified()
 	assertTrue "Didn't create local release branch" "git branch | grep -q release/123"
 }
 
-. shunit2/src/shunit2
+. shunit2/shunit2

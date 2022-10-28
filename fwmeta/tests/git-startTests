@@ -223,4 +223,4 @@ testFeatureBranch()
 	cd $tmpdir/bareRepo
 	assertTrue "Didn't push to origin" "git branch | grep -q ${branch}-a"
 }
-. shunit2/src/shunit2
+. shunit2/shunit2
