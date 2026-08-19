@@ -3,13 +3,12 @@
 #
 # Gets called by git with the name of the file that holds the commit message
 # This script checks that the commit message is formatted according to the standard:
-# - First line:      no more than 62 chars and not ending with period (or if it is the
-#                    only line: no more than 70 chars)
+# - First line:      no more than 72 chars and not ending with punctuation
 # - Second line:     empty
 # - Following lines: no more than 70 chars
 
-FIRSTLINE_LEN=62
-LINE_LEN=70
+FIRSTLINE_LEN=72
+LINE_LEN=80
 ERRORHEADER="[POLICY] Your commit message is not formatted correctly."
 
 OutputError()
@@ -27,17 +26,10 @@ do
 	LEN=$(echo "$LINE" | tr -d "\r\n" | wc -c) # don't count \r\n
 	case "$COUNT" in
 		1)
-			if [ $(cat "$1" | sed '/^Change-Id: /d;/^\s*$/d' | wc -l) -gt 1 ]; then
-				THIS_LINE_LEN=$FIRSTLINE_LEN
-				MSG="The first line (subject) should be no more than $FIRSTLINE_LEN characters."
-			else
-				THIS_LINE_LEN=$LINE_LEN
-				MSG="The first line (subject) should be no more than $LINE_LEN characters if it is the only line."
-			fi
-			if [ $LEN -gt $THIS_LINE_LEN ]; then
-				OutputError "$MSG" 1
-			elif [ "${LINE:$LEN-1}" = "." ]; then
-				OutputError "The first line (subject) should not end with a period." 2
+			if [ $LEN -gt $FIRSTLINE_LEN ]; then
+				OutputError "The first line (subject) should be no more than $FIRSTLINE_LEN characters." 1
+			elif [[ ".,\-!?:;/" == *"${LINE:$LEN-1}"* ]]; then
+				OutputError "The first line (subject) should not end with punctuation." 2
 			fi
 			;;
 		2)
